@@ -1,0 +1,58 @@
+steps:
+  # Build the Docker image with all environment variables
+  - name: 'gcr.io/cloud-builders/docker'
+    args: 
+      - 'build'
+      - '-t'
+      - 'us-docker.pkg.dev/$PROJECT_ID/frontend/frontend:latest'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51RRaUk4STmMQIYMZsYur9duoaVJenyC3SYWSyc5lqQYXCUjYY0SxFAvOEqFsjUPVaTiRVPrSuYnVcrElRDaZtNkM00sRDGfQKb'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyBfbEQUIGs-0rGMMw2GLFkcq6EvlG4ID40'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=seventh-program-433718-h8.firebaseapp.com'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_PROJECT_ID=seventh-program-433718-h8'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=seventh-program-433718-h8.firebasestorage.app'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=351785787544'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_APP_ID=1:351785787544:web:eeb0ca41aa9ffa0354f0ed'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-X53524FJ7B'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_API_BASE_URL=https://user-backend-351785787544.us-central1.run.app/users/api/v1'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_API_USER_URL=https://user-backend-351785787544.us-central1.run.app'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_GACHA_API_BASE_URL=https://backend-769075815684.us-central1.run.app/gacha/api/v1'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_ACHIEVEMENT_CHECK_URL=https://check-achievements-351785787544.us-central1.run.app'
+      - '.'
+    
+  # Push the Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-docker.pkg.dev/$PROJECT_ID/frontend/frontend:latest']
+    
+  # Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'zapull-frontend'
+      - '--image=us-docker.pkg.dev/$PROJECT_ID/frontend/frontend:latest'
+      - '--platform=managed'
+      - '--region=us-central1'
+      - '--allow-unauthenticated'
+      - '--port=3000'
+      - '--memory=512Mi'
+      - '--cpu=1'
+      - '--min-instances=0'
+      - '--max-instances=10'
+      - '--set-env-vars=NODE_ENV=production'
+      
+images:
+  - 'us-docker.pkg.dev/$PROJECT_ID/frontend/frontend:latest'
+  
+timeout: '1200s'

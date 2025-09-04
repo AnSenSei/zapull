@@ -1,0 +1,19 @@
+steps:
+  # Build the Docker image with timestamp tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-docker.pkg.dev/zapull-production/frontend/admin:${_VERSION_TAG}', '.']
+  
+  # Also tag as latest
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['tag', 'us-docker.pkg.dev/zapull-production/frontend/admin:${_VERSION_TAG}', 'us-docker.pkg.dev/zapull-production/frontend/admin:latest']
+
+# Push both tags to Artifact Registry
+images:
+  - 'us-docker.pkg.dev/zapull-production/frontend/admin:${_VERSION_TAG}'
+  - 'us-docker.pkg.dev/zapull-production/frontend/admin:latest'
+
+substitutions:
+  _VERSION_TAG: ${SHORT_SHA}
+
+options:
+  logging: CLOUD_LOGGING_ONLY

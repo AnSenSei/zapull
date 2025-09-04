@@ -1,0 +1,204 @@
+import secrets
+import uvicorn
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
+import os
+
+from config import get_logger, instrument_app, settings, test_connection, close_connector
+from router import account_router, card_router, marketplace_router, rank_router, payment_router, fusion_router, withdraw_router, history_router
+from router.achievements_router import router as achievements_router
+from router.marketplace_router import listings_router
+from router.packs_router import router as packs_router
+from router.official_odds_router import router as official_odds_router
+from service.payment_service import ensure_payment_tables_exist
+from middleware.idempotency import idempotency_middleware
+
+# Configure logging with structured logger
+logger = get_logger("main")
+
+# Service configuration
+SERVICE_TITLE = "User Service API"
+SERVICE_PATH = "users"
+API_VERSION = "v1"
+
+# Main application instance
+app = FastAPI(title=f"{SERVICE_TITLE} - Main Gateway")
+
+# Add database connection test to startup event
+@app.on_event("startup")
+async def startup_db_client():
+    """Initialize database connection on startup"""
+    logger.info("Testing database connection...")
+    if test_connection():
+        logger.info("Database connection successful")
+
+        # Ensure payment tables exist
+        if ensure_payment_tables_exist():
+            logger.info("Payment tables initialized successfully")
+        else:
+            logger.warning("Failed to initialize payment tables")
+    else:
+        logger.warning("Failed to establish database connection")
+
+# Add database connection cleanup to shutdown event
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    """Close database connections on shutdown"""
+    logger.info("Closing database connections...")
+    close_connector()
+    logger.info("Database connections closed")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize OpenTelemetry instrumentation on the main app
+instrument_app(app)
+
+@app.get("/", response_class=HTMLResponse)
+@app.get(f"/{SERVICE_PATH}", response_class=HTMLResponse)
+@app.get(f"/{SERVICE_PATH}/", response_class=HTMLResponse)
+async def hello_service():
+    logger.info(f"Root or service path /{SERVICE_PATH} accessed.")
+    docs_link = f"<p>See <a href='/{SERVICE_PATH}/api/{API_VERSION}/docs'>API docs</a> for user operations.</p>"
+    return f"""
+    <html>
+        <head>
+            <title>{SERVICE_TITLE}</title>
+        </head>
+        <body>
+            <h1>You've reached the {SERVICE_TITLE}.</h1>
+            {docs_link}
+        </body>
+    </html>
+    """
+
+# Configure Swagger UI authentication
+swagger_auth_scheme = {
+    "FirebaseBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Enter your Firebase ID token. You can get this from your Firebase authenticated app."
+    }
+}
+
+# Sub-API for actual user operations
+# Enable docs in all environments
+docs_enabled = True
+
+api_v1 = FastAPI(
+    title=SERVICE_TITLE,
+    description="API for managing users and user profiles.",
+    version=API_VERSION,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    openapi_tags=[
+        {"name": "accounts", "description": "Account management operations"},
+        {"name": "cards", "description": "Card management operations"},
+        {"name": "marketplace", "description": "Marketplace operations"},
+        {"name": "payments", "description": "Payment operations"},
+        {"name": "History", "description": "User history operations (pack openings, transactions, recharges)"},
+        {"name": "official-odds", "description": "Official odds card drawing operations"},
+    ],
+    swagger_ui_init_oauth={
+        "usePkceWithAuthorizationCodeGrant": True,
+    } if docs_enabled else None
+)
+
+# Middleware for the sub-API (api_v1)
+SECRET_KEY = secrets.token_urlsafe(32)
+api_v1.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+logger.info(f"SessionMiddleware added to /api/{API_VERSION} with a generated SECRET_KEY.")
+
+# Add idempotency middleware for payment endpoints
+api_v1.middleware("http")(idempotency_middleware)
+logger.info("Idempotency middleware added for payment security")
+
+# Include routers
+api_v1.include_router(account_router.router)
+logger.info("Account router included in the sub-API.")
+
+api_v1.include_router(card_router.router)
+logger.info("Card router included in the sub-API.")
+
+api_v1.include_router(marketplace_router.router)
+logger.info("Marketplace router included in the sub-API.")
+
+api_v1.include_router(listings_router)
+logger.info("Listings router included in the sub-API.")
+
+api_v1.include_router(rank_router.router)
+logger.info("Rank router included in the sub-API.")
+
+api_v1.include_router(payment_router.router)
+logger.info("Payment router included in the sub-API.")
+
+api_v1.include_router(achievements_router)
+logger.info("Achievements router included in the sub-API.")
+
+api_v1.include_router(fusion_router.router)
+logger.info("Fusion router included in the sub-API.")
+
+api_v1.include_router(withdraw_router.router)
+logger.info("Withdraw router included in the sub-API.")
+
+api_v1.include_router(packs_router)
+logger.info("Packs router included in the sub-API.")
+
+api_v1.include_router(history_router.router)
+logger.info("History router included in the sub-API.")
+
+api_v1.include_router(official_odds_router)
+logger.info("Official odds router included in the sub-API.")
+
+# Store the original openapi method
+original_openapi = api_v1.openapi
+
+# Custom OpenAPI schema to add authentication
+def custom_openapi():
+    if api_v1.openapi_schema:
+        return api_v1.openapi_schema
+    
+    # Call the original openapi method
+    openapi_schema = original_openapi()
+    
+    # Add security schemes
+    if "components" not in openapi_schema:
+        openapi_schema["components"] = {}
+    
+    openapi_schema["components"]["securitySchemes"] = {
+        "FirebaseBearer": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Firebase ID Token - Get this from your Firebase authenticated app"
+        }
+    }
+    
+    # Cache the schema
+    api_v1.openapi_schema = openapi_schema
+    return api_v1.openapi_schema
+
+# Override the openapi method
+api_v1.openapi = custom_openapi
+
+# Mount the sub-API (api_v1) under the main app (app)
+app.mount(f"/{SERVICE_PATH}/api/{API_VERSION}", api_v1)
+logger.info(f"Sub-API mounted at /{SERVICE_PATH}/api/{API_VERSION}")
+
+if __name__ == "__main__":
+    port = 8082  # Use a different port than the other services
+    host = "0.0.0.0"  # Listen on all available IPs
+
+    logger.info(f"Starting Uvicorn server on {host}:{port}")
+    uvicorn.run("main:app", host=host, port=port, log_level="info", reload=True)

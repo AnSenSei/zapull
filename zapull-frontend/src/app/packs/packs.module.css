@@ -1,0 +1,2199 @@
+/* 卡包详情页样式 */
+
+.cardRarity1 {
+  border: 2px solid #8E8E8E; /* 普通 */
+  background: linear-gradient(135deg, rgba(142, 142, 142, 0.1) 0%, rgba(142, 142, 142, 0.05) 100%);
+}
+
+.cardRarity2 {
+  border: 2px solid #4CAF50; /* 稀有 */
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 100%);
+}
+
+.cardRarity3 {
+  border: 2px solid #2196F3; /* 超稀有 */
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.15) 0%, rgba(33, 150, 243, 0.05) 100%);
+}
+
+.cardRarity4 {
+  border: 2px solid #9C27B0; /* 史诗 */
+  background: linear-gradient(135deg, rgba(156, 39, 176, 0.15) 0%, rgba(156, 39, 176, 0.05) 100%);
+}
+
+.cardRarity5 {
+  border: 2px solid #FF9800; /* 传说 */
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.05) 100%);
+}
+
+/* 卡片悬停效果 */
+.cardItem {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(26, 27, 46, 0.95) 0%, rgba(16, 17, 30, 0.9) 100%);
+  backdrop-filter: blur(10px);
+  border: 2px solid var(--card-border-color, #333);
+}
+
+.cardItem:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  border-color: var(--card-border-color, #666);
+  filter: brightness(1.1);
+}
+
+/* 卡包详情页面卡牌列表悬停效果 */
+.cardListItem {
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid transparent;
+}
+
+/* 卡牌悬停时的边框和背景效果 */
+.cardListItem:hover {
+  border: 2px solid var(--card-hover-color, #ffffff);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* 卡牌悬停时的模态背景 */
+.cardListItem:hover::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--card-hover-bg, rgba(255, 255, 255, 0.1));
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 10px;
+}
+
+/* 星星背景装饰 - 使用CSS Houdini Paint API */
+.cardListItem::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-image: paint(starry-sky);
+  background-color: transparent;
+  --star-density: 30;
+  --star-opacity: 0.8;
+  opacity: 0.3;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 星星颜色由内联样式的--star-color变量控制，使用接口返回的card.color */
+
+.cardListItem:hover .cardImageContainer {
+  transform: scale(1.15);
+  z-index: 10;
+}
+
+.cardListItem:hover .cardTitle {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.cardListItem:hover .cardInfoTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%);
+}
+
+.cardImageContainer {
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 3;
+}
+
+.cardTitle {
+  transition: all 0.3s ease;
+  opacity: 1;
+  transform: translateY(0);
+  position: relative;
+  z-index: 3;
+}
+
+/* 确保卡牌内容在悬停时不被遮挡 */
+.cardListItem > div {
+  position: relative;
+  z-index: 2;
+}
+
+.cardInfoTooltip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 20;
+  pointer-events: none;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cardItem::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 1;
+}
+
+.cardRarity1::before {
+  background: #8E8E8E;
+}
+
+
+
+.cardRarity3::before {
+  background: #2196F3;
+}
+
+.cardRarity4::before {
+  background: #9C27B0;
+}
+
+.cardRarity5::before {
+  background: #FF9800;
+}
+
+/* 卡包图片容器 */
+.packImageContainer {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  /* Blend with main page background */
+  background: #2A2B47; /* matches main app bg */
+  /* Use a subtle glow but keep it stable */
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(136, 104, 255, 0.25);
+  transition: none;
+  /* Larger size for desktop pack detail page */
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+}
+
+/* Keep hover identical to default to avoid visual change on hover */
+.packImageContainer:hover {
+  transform: none;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  border-color: rgba(136, 104, 255, 0.25);
+}
+
+/* Ensure any inner absolute gradient overlay is fully transparent so the
+   container matches the main background exactly (works with Tailwind classes) */
+.packImageContainer :global(.absolute.inset-0) {
+  opacity: 0 !important;
+}
+
+/* 卡包详情容器 */
+.packDetailContainer {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* 按钮动画 */
+.buttonPulse {
+  animation: pulse 2s infinite;
+  background: linear-gradient(135deg, #8868FF 0%, #6E56CC 100%);
+  font-weight: bold;
+  border-radius: 16px;
+  border: 2px solid rgba(136, 104, 255, 0.5);
+  transition: all 0.3s ease;
+}
+
+.buttonPulse:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(136, 104, 255, 0.4);
+}
+
+/* 开启按钮样式 */
+.openButton {
+  background: linear-gradient(135deg, #8A6FFF 0%, #6C57B9 100%);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  padding: 14px 20px;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(138, 111, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 48px;
+}
+
+.openButton:hover {
+  background: linear-gradient(135deg, #9B7FFF 0%, #7D63C9 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(138, 111, 255, 0.4);
+}
+
+.openButton:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(138, 111, 255, 0.3);
+}
+
+.openButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(136, 104, 255, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(136, 104, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(136, 104, 255, 0);
+  }
+}
+
+/* 试开按钮样式 */
+.rightPanelContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 400px;
+  width: 100%;
+}
+
+/* 桌面端按钮组样式 */
+.buttonGroup {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(136, 104, 255, 0.15) 0%, rgba(160, 134, 255, 0.1) 100%);
+  border-radius: 20px;
+  padding: 12px 16px;
+  backdrop-filter: blur(15px);
+  border: 2px solid rgba(136, 104, 255, 0.3);
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(136, 104, 255, 0.1);
+  transition: all 0.3s ease;
+  min-height: 64px;
+  flex-wrap: nowrap;
+}
+
+/* 移除按钮组的悬停动画效果 */
+
+/* Demo和Skip按钮容器 */
+.iconButtonWrapper {
+  min-width: 75px;
+  height: 40px;
+  background: linear-gradient(135deg, rgba(136, 104, 255, 0.12) 0%, rgba(160, 134, 255, 0.08) 100%);
+  border-radius: 12px;
+  border: 1.5px solid rgba(136, 104, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(12px);
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(136, 104, 255, 0.08);
+}
+
+.iconButtonWrapper:hover {
+  background: linear-gradient(135deg, rgba(136, 104, 255, 0.18) 0%, rgba(160, 134, 255, 0.12) 100%);
+  border-color: rgba(136, 104, 255, 0.4);
+  box-shadow: 0 6px 20px rgba(136, 104, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+/* 数字按钮组容器 */
+.numberButtonGroup {
+  background: linear-gradient(135deg, rgba(136, 104, 255, 0.12) 0%, rgba(160, 134, 255, 0.08) 100%);
+  border-radius: 12px;
+  border: 1.5px solid rgba(136, 104, 255, 0.25);
+  display: flex;
+  padding: 0;
+  gap: 0;
+  backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
+  flex: 1;
+  height: 40px;
+  box-shadow: 0 4px 16px rgba(136, 104, 255, 0.08);
+  overflow: hidden;
+}
+
+.numberButtonGroup:hover {
+  background: linear-gradient(135deg, rgba(136, 104, 255, 0.18) 0%, rgba(160, 134, 255, 0.12) 100%);
+  border-color: rgba(136, 104, 255, 0.4);
+  box-shadow: 0 6px 20px rgba(136, 104, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+/* 统计信息容器样式 */
+.statsContainer {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 18px 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  margin-top: 0;
+  border: 1px solid rgba(136, 104, 255, 0.2);
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 6px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1;
+}
+
+/* 桌面端图标按钮样式 */
+.iconButton {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  min-width: 75px;
+}
+
+.iconButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.iconButton:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  transform: scale(1.02);
+}
+
+.iconButton:hover::before {
+  left: 100%;
+}
+
+.iconButton.active {
+  background: linear-gradient(135deg, #8A6FFF 0%, #6C57B9 100%);
+  color: white;
+  box-shadow: 0 4px 16px rgba(138, 111, 255, 0.3);
+  /* Removed transform to prevent size change */
+}
+
+.iconButton.active::before {
+  display: none;
+}
+
+/* 移除图标按钮激活状态的小圆圈 */
+
+/* 桌面端数字按钮样式 */
+.numberButton {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  padding: 0;
+  border-radius: 0;
+  flex: 1;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 45px;
+}
+
+.numberButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.numberButton:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  transform: scale(1.02);
+}
+
+.numberButton:hover::before {
+  left: 100%;
+}
+
+.numberButton.active {
+  background: linear-gradient(135deg, #8A6FFF 0%, #6C57B9 100%);
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 4px 16px rgba(138, 111, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.numberButton.active::before {
+  display: none;
+}
+
+/* 稀有度标签样式 */
+.probabilityTag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.probabilityTag:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* 稀有度标签颜色 */
+.rarityTag1 {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(142, 142, 142, 0.8) 100%);
+  border-color: rgba(142, 142, 142, 0.5);
+}
+
+.rarityTag2 {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(76, 175, 80, 0.8) 100%);
+  border-color: rgba(76, 175, 80, 0.5);
+}
+
+.rarityTag3 {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(33, 150, 243, 0.8) 100%);
+  border-color: rgba(33, 150, 243, 0.5);
+}
+
+.rarityTag4 {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(156, 39, 176, 0.8) 100%);
+  border-color: rgba(156, 39, 176, 0.5);
+}
+
+.rarityTag5 {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(255, 152, 0, 0.8) 100%);
+  border-color: rgba(255, 152, 0, 0.5);
+}
+
+/* 卡片列表标题样式 */
+.sectionTitle {
+  font-size: 28px;
+  font-weight: bold;
+  color: #E5DEFF;
+  background: linear-gradient(89deg, #BDA9FF 0%, #F4F1FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 4px 20px rgba(136, 104, 255, 0.3);
+  letter-spacing: -0.02em;
+  margin-bottom: 2rem;
+}
+
+/* 卡片样式 */
+.packCard {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+}
+
+.packCard:hover {
+  transform: translateY(-8px) scale(1.02);
+}
+
+/* 价格和概率边界样式 */
+.packCardPriceProbability {
+  padding: 12px 16px;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+  margin: 0 -4px -4px -4px; /* Negative margin to extend beyond the card's border */
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.packCardPriceProbability::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.6s ease;
+}
+
+.packCard:hover .packCardPriceProbability::before {
+  left: 100%;
+}
+
+.packCardPriceProbability span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 1;
+  position: relative;
+}
+
+/* 卡片列表动画 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cardsList > div {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.cardsList > div:nth-child(1) { animation-delay: 0.1s; }
+.cardsList > div:nth-child(2) { animation-delay: 0.2s; }
+.cardsList > div:nth-child(3) { animation-delay: 0.3s; }
+.cardsList > div:nth-child(4) { animation-delay: 0.4s; }
+.cardsList > div:nth-child(5) { animation-delay: 0.5s; }
+.cardsList > div:nth-child(6) { animation-delay: 0.6s; }
+.cardsList > div:nth-child(7) { animation-delay: 0.7s; }
+.cardsList > div:nth-child(8) { animation-delay: 0.8s; }
+
+/* 页面背景和标题样式 */
+.pageContainer {
+  min-height: 100vh;
+  position: relative;
+}
+
+.pageTitle {
+  font-size: 32px;
+  font-weight: bold;
+  color: #E5DEFF;
+  background: linear-gradient(89deg, #BDA9FF 0%, #F4F1FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 4px 20px rgba(136, 104, 255, 0.3);
+}
+
+/* 卡包详情容器 */
+.packDetailContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.infoContainer {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.imageWrapper {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.infoWrapper {
+  flex: 1;
+}
+
+/* 通用样式 - 适用于所有屏幕尺寸 */
+.infoContainer {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2.5rem;
+  max-width: 1100px;
+  margin: 0 auto 3rem auto;
+  padding: 2rem;
+  border: 3px dashed rgba(136, 104, 255, 0.6);
+  border-radius: 20px;
+  position: relative;
+  background: rgba(136, 104, 255, 0.02);
+}
+
+.imageWrapper {
+  flex-shrink: 0;
+}
+
+.infoWrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* 图片容器样式 */
+.imageWrapper {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.imageWrapper:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(136, 104, 255, 0.15);
+}
+
+.packImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.packImage:hover {
+  transform: scale(1.02);
+}
+
+/* 大屏幕特定样式 */
+@media (min-width: 1980px) {
+  .infoContainer {
+    gap: 3rem;
+  }
+}
+
+/* Mobile-specific celebration effect positioning fixes */
+@media (max-width: 768px) {
+  /* Fix celebration effect positioning on mobile for drawn cards */
+  .drawnCard {
+    /* Ensure container doesn't interfere with celebration animations */
+    contain: layout style;
+    overflow: visible;
+    perspective: 1000px;
+    -webkit-perspective: 1000px;
+  }
+  
+  /* Mobile-specific celebration glow adjustments */
+  .drawnCard.celebrateOrange .cardFront,
+  .drawnCard.celebrateOrange .cardBack {
+    /* Use mobile-optimized animation */
+    animation: celebrateGlowOrangeMobile 1.4s ease-in-out infinite;
+    border-color: #ff9800 !important;
+  }
+  
+  .drawnCard.celebrateRed .cardFront,
+  .drawnCard.celebrateRed .cardBack {
+    /* Use mobile-optimized animation */
+    animation: celebrateGlowRedMobile 1.4s ease-in-out infinite;
+    border-color: #ff4757 !important;
+  }
+  
+  .drawnCard.celebratePurple .cardFront,
+  .drawnCard.celebratePurple .cardBack {
+    /* Use mobile-optimized animation */
+    animation: celebrateGlowPurpleMobile 1.4s ease-in-out infinite;
+    border-color: #9c27b0 !important;
+  }
+  
+  /* Fix sparkle effect positioning on mobile - use proper centering */
+  .drawnCard.celebrateOrange::after,
+  .drawnCard.celebrateRed::after,
+  .drawnCard.celebratePurple::after {
+    /* Use absolute positioning with proper centering */
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 110% !important;
+    height: 110% !important;
+    transform: translate(-50%, -50%) !important;
+    /* Remove blur on mobile for better performance and positioning */
+    filter: none !important;
+    /* Ensure proper stacking */
+    z-index: 2;
+    /* Reset any conflicting properties */
+    inset: unset !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 12px;
+  }
+  
+/* 移动端响应式 */
+  .infoContainer {
+    flex-direction: column;
+    gap: 2rem;
+    align-items: center;
+  }
+  
+  /* 移动端右侧面板容器优化 */
+  .rightPanelContainer {
+    min-width: unset;
+    gap: 1rem;
+  }
+  
+  /* 页面标题移动端优化 */
+  .pageTitle {
+    font-size: 24px;
+    margin-bottom: 1.5rem;
+  }
+  
+  /* 卡包图片容器移动端优化 */
+  .packImageContainer {
+    max-width: 280px;
+    margin: 0 auto;
+  }
+  
+  /* 抽卡结果容器移动端优化 */
+  .drawnCardsContainer {
+    padding: 10px 5px;
+    gap: 15px;
+    min-height: calc(100vh - 100px);
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-rows: repeat(3, 1fr) !important;
+    gap: 10px !important;
+    justify-items: center !important;
+    align-content: center !important;
+    padding: 10px 5px !important;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(1) {
+    grid-column: 1 / span 1;
+    grid-row: 1;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(2) {
+    grid-column: 2 / span 1;
+    grid-row: 1;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(3) {
+    grid-column: 1 / span 2;
+    grid-row: 2;
+    justify-self: center;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(4) {
+    grid-column: 1 / span 1;
+    grid-row: 3;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(5) {
+    grid-column: 2 / span 1;
+    grid-row: 3;
+  }
+  
+  .drawnCard {
+    width: 140px;
+    height: 196px;
+  }
+  
+  /* 控制按钮移动端优化 */
+  .controlButtons {
+    flex-direction: column;
+    gap: 10px;
+    bottom: 15px;
+    padding: 0 15px;
+  }
+  
+  .confirmButton,
+  .destroyButton {
+    min-width: 200px;
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+  
+  /* 关闭按钮移动端优化 */
+  .closeButton {
+    top: 10px;
+    right: 10px;
+    width: 35px;
+    height: 35px;
+    font-size: 20px;
+  }
+  
+  /* 跳过按钮移动端优化 */
+  .skipButton {
+    bottom: 10px;
+    right: 10px;
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+  
+  /* 移动端按钮组完全重新设计 */
+  .buttonGroup {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, rgba(136, 104, 255, 0.15) 0%, rgba(160, 134, 255, 0.1) 100%);
+    border-radius: 16px;
+    padding: 6px 8px;
+    backdrop-filter: blur(15px);
+    border: 2px solid rgba(136, 104, 255, 0.3);
+    width: 100%;
+    box-shadow: 0 4px 16px rgba(136, 104, 255, 0.1);
+    min-height: 44px;
+    flex-wrap: nowrap;
+    box-sizing: border-box;
+  }
+  
+  .iconButtonWrapper {
+    min-width: 55px;
+    height: 30px;
+    background: linear-gradient(135deg, rgba(136, 104, 255, 0.12) 0%, rgba(160, 134, 255, 0.08) 100%);
+    border-radius: 6px;
+    border: 1px solid rgba(136, 104, 255, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  
+  .numberButtonGroup {
+    background: linear-gradient(135deg, rgba(136, 104, 255, 0.12) 0%, rgba(160, 134, 255, 0.08) 100%);
+    border-radius: 6px;
+    border: 1px solid rgba(136, 104, 255, 0.25);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    gap: 0;
+    flex: 1;
+    max-width: 110px;
+    height: 30px;
+    overflow: hidden;
+  }
+  
+  .numberButton {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+    font-size: 11px;
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 0;
+    min-width: 0;
+    padding: 0;
+  }
+  
+  .iconButton {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+    font-size: 10px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    min-width: 0;
+    flex-direction: row;
+  }
+  
+  /* 统计信息移动端优化 */
+  .statsContainer {
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+  }
+  
+/* 卡片网格移动端优化 */
+  .cardsList {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem;
+    padding: 0 1rem;
+  }
+  
+/* 清爽的卡片样式 */
+  .packCard {
+    transition: transform 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .packCard:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  /* 价格和概率边界基础样式 */
+  .packCardPriceProbability {
+    padding: 8px 12px;
+    border-radius: 0 0 8px 8px;
+    color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    position: relative;
+    overflow: hidden;
+    min-height: 36px;
+    flex-wrap: nowrap;
+  }
+
+  .packCardPriceProbability::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.6s ease;
+  }
+
+  .packCard:hover .packCardPriceProbability::before {
+    left: 100%;
+  }
+
+  .packCardPriceProbability span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    z-index: 1;
+    position: relative;
+  }
+
+  /* 稀有度颜色系统 */
+  .packCardPriceProbability.rarity1 {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    border-top: 2px solid #8E8E8E;
+  }
+
+  .packCardPriceProbability.rarity2 {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border-top: 2px solid #4CAF50;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+  }
+
+  .packCardPriceProbability.rarity3 {
+    background: linear-gradient(135deg, #007bff 0%, #6610f2 100%);
+    border-top: 2px solid #2196F3;
+    box-shadow: 0 2px 12px rgba(33, 150, 243, 0.4);
+  }
+
+  .packCardPriceProbability.rarity4 {
+    background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+    border-top: 2px solid #9C27B0;
+    box-shadow: 0 2px 16px rgba(156, 39, 176, 0.5);
+  }
+
+  .packCardPriceProbability.rarity5 {
+    background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%);
+    border-top: 2px solid #FF9800;
+    box-shadow: 0 2px 20px rgba(255, 152, 0, 0.6);
+    animation: legendaryGlow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes legendaryGlow {
+    from {
+      box-shadow: 0 2px 20px rgba(255, 152, 0, 0.6);
+    }
+    to {
+      box-shadow: 0 2px 30px rgba(255, 152, 0, 0.8), 0 0 40px rgba(255, 152, 0, 0.3);
+    }
+  }
+  
+  .cardItem {
+    min-height: 280px;
+  }
+  
+  /* 抽卡结果移动端优化 */
+  .drawnCardsContainer {
+    padding: 20px 10px;
+    gap: 15px;
+  }
+  
+  .drawnCardsContainer[data-card-count="1"] {
+    justify-content: center;
+  }
+  
+  .drawnCardsContainer[data-card-count="3"] {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-rows: repeat(3, 1fr) !important;
+    gap: 10px !important;
+    justify-items: center !important;
+    padding: 20px 10px !important;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(1) {
+    grid-column: 1 / span 1;
+    grid-row: 1;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(2) {
+    grid-column: 2 / span 1;
+    grid-row: 1;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(3) {
+    grid-column: 1 / span 2;
+    grid-row: 2;
+    justify-self: center;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(4) {
+    grid-column: 1 / span 1;
+    grid-row: 3;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(5) {
+    grid-column: 2 / span 1;
+    grid-row: 3;
+  }
+  
+  .drawnCard {
+    width: 150px;
+    height: 210px;
+  }
+  
+  /* 控制按钮移动端优化 */
+  .controlButtons {
+    flex-direction: column;
+    gap: 10px;
+    bottom: 20px;
+  }
+  
+  .confirmButton,
+  .destroyButton {
+    min-width: 200px;
+    padding: 12px 24px;
+  }
+  
+  /* 关闭按钮移动端优化 */
+  .closeButton {
+    top: 10px;
+    right: 10px;
+    width: 35px;
+    height: 35px;
+    font-size: 20px;
+  }
+  
+  /* 跳过按钮移动端优化 */
+  .skipButton {
+    bottom: 10px;
+    right: 10px;
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+}
+
+
+/* 小屏幕移动端优化 */
+@media (max-width: 480px) {
+  .pageTitle {
+    font-size: 20px;
+    margin-bottom: 1rem;
+  }
+  
+  .packImageContainer {
+    max-width: 240px;
+  }
+  
+  .cardsList {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.8rem;
+    padding: 0 0.5rem;
+  }
+  
+  .cardItem {
+    min-height: 240px;
+  }
+  
+  /* 抽卡结果容器小屏幕优化 */
+  .drawnCardsContainer {
+    padding: 10px 5px;
+    gap: 8px;
+    min-height: calc(100vh - 80px);
+  }
+  
+  .drawnCard {
+    width: 110px;
+    height: 154px;
+  }
+  
+  /* 针对375px宽度设备的特殊优化 - 只对需要滚动的情况 */
+  .drawnCardsContainer[data-card-count="10"],
+  .drawnCardsContainer[data-card-count="20"] {
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    align-items: center;
+    padding: 10px 8px;
+    gap: 6px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .drawnCardsContainer[data-card-count="10"] .drawnCard,
+  .drawnCardsContainer[data-card-count="20"] .drawnCard {
+    width: 100px !important;
+    height: 140px !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* 卡片容器包装器 */
+  .cardsWrapper {
+    position: relative;
+    width: 100%;
+  }
+  
+  /* 滚动指示器 */
+  .scrollIndicator {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  
+  /* 渐变遮罩 */
+  .scrollGradient {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.15));
+  }
+  
+  /* 滚动箭头 */
+  .scrollArrow {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(136, 104, 255, 0.9);
+    font-size: 16px;
+    font-weight: bold;
+    animation: scrollPulse 2s infinite;
+  }
+  
+  /* 小屏幕移动端按钮组优化 */
+  .buttonGroup {
+    gap: 6px;
+    padding: 6px 8px;
+    min-height: 40px;
+    border-radius: 12px;
+  }
+  
+  .iconButtonWrapper {
+    min-width: 50px;
+    height: 28px;
+  }
+  
+  .numberButtonGroup {
+    max-width: 100px;
+    height: 28px;
+  }
+  
+  .numberButton {
+    font-size: 9px;
+  }
+  
+  .iconButton {
+    font-size: 9px;
+    gap: 2px;
+  }
+  
+  .confirmButton,
+  .destroyButton {
+    min-width: 160px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  /* 控制按钮区域小屏幕优化 */
+  .controlButtons {
+    bottom: 10px;
+    padding: 0 10px;
+    gap: 8px;
+  }
+}
+
+/* 针对390px宽度设备优化（如 390×844） */
+@media (max-width: 400px) {
+  /* 稍微增大尺寸，仍保持完整可见 */
+  .drawnCard {
+    width: 105px !important;
+    height: 147px !important;
+  }
+
+  .drawnCardsContainer {
+    padding: 8px 5px !important;
+    gap: 6px !important;
+    min-height: calc(100vh - 70px) !important;
+  }
+
+  /* 让弹窗内容在纵向可滚动，避免底部按钮或卡片被遮挡 */
+  .drawModalContent {
+    padding: 5px;
+  }
+
+  /* 控制按钮稍微上移，保证可见 */
+  .controlButtons {
+    bottom: 8px;
+    padding: 0 8px;
+  }
+  
+  .confirmButton,
+  .destroyButton {
+    min-width: 140px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+/* 超小屏幕设备优化（如 320px 宽度） */
+@media (max-width: 360px) {
+  .drawnCard {
+    width: 90px !important;
+    height: 126px !important;
+  }
+
+  .drawnCardsContainer {
+    padding: 5px 3px !important;
+    gap: 4px !important;
+    min-height: calc(100vh - 60px) !important;
+  }
+
+  .drawnCardsContainer[data-card-count="10"] .drawnCard,
+  .drawnCardsContainer[data-card-count="20"] .drawnCard {
+    width: 85px !important;
+    height: 119px !important;
+  }
+
+  .controlButtons {
+    bottom: 5px;
+    padding: 0 5px;
+    gap: 6px;
+  }
+
+  .confirmButton,
+  .destroyButton {
+    min-width: 120px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .closeButton {
+    width: 30px;
+    height: 30px;
+    font-size: 18px;
+    top: 5px;
+    right: 5px;
+  }
+
+  .skipButton {
+    padding: 6px 12px;
+    font-size: 12px;
+    bottom: 5px;
+    right: 5px;
+  }
+}
+
+/* 针对375px及以下设备的专门优化 */
+@media (max-width: 375px) {
+  .drawnCardsContainer {
+    padding: 12px 6px !important;
+    gap: 6px !important;
+  }
+  
+  .drawnCard {
+    width: 110px !important;
+    height: 154px !important;
+  }
+  
+  /* 隐藏滚动条 */
+  .drawnCardsContainer::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .drawnCardsContainer {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  /* 卡片容器包装器 */
+  .cardsWrapper {
+    position: relative;
+    width: 100%;
+  }
+  
+  /* 滚动指示器 */
+  .scrollIndicator {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  
+  /* 渐变遮罩 */
+  .scrollGradient {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.1));
+  }
+  
+  /* 滚动箭头 */
+  .scrollArrow {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(136, 104, 255, 0.8);
+    font-size: 18px;
+    font-weight: bold;
+    animation: scrollPulse 2s infinite;
+  }
+  
+  @keyframes scrollPulse {
+    0%, 100% { opacity: 0.6; transform: translateY(-50%) translateX(0); }
+    50% { opacity: 1; transform: translateY(-50%) translateX(3px); }
+  }
+  
+  /* 按钮组在超小屏幕上的优化 */
+  .buttonGroup {
+    gap: 3px;
+    padding: 4px 6px;
+    min-height: 36px;
+  }
+  
+  .iconButtonWrapper {
+    min-width: 45px;
+    height: 26px;
+  }
+  
+  .numberButtonGroup {
+    max-width: 90px;
+    height: 26px;
+  }
+  
+  .iconButton {
+    font-size: 8px;
+  }
+  
+  .numberButton {
+    font-size: 8px;
+  }
+}
+
+/* 针对 430×932 屏幕优化（例如 iPhone 14/15 非 Pro） */
+@media (max-width: 430px) and (max-height: 932px) {
+  /* 更小的卡片尺寸，确保底部按钮可见 */
+  .drawnCard {
+    width: 120px !important;
+    height: 168px !important;
+  }
+  .drawnCardsContainer {
+    padding: 12px 8px !important;
+    gap: 10px !important;
+  }
+  /* 紧凑的底部按钮区域 */
+  .controlButtons {
+    bottom: 16px !important;
+    gap: 12px !important;
+  }
+  .confirmButton,
+  .destroyButton {
+    min-width: 160px !important;
+    padding: 10px 18px !important;
+    font-size: 14px !important;
+  }
+}
+
+/* 3D翻转动画样式 */
+.transformStylePreserve3d {
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+.backfaceHidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotateY180 {
+  transform: rotateY(180deg);
+}
+
+/* GPU加速优化 */
+.cardFlip {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* 抽卡弹窗样式 */
+.drawModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.drawModalContent {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.closeButton {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+  transition: all 0.3s ease;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.confirmButton {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  padding: 12px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  flex: 1;
+  max-width: 300px;
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.confirmButton:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* 卡片翻转动画 - 点击翻转特效 */
+.cardFlip {
+  perspective: 1200px;
+  perspective-origin: center center;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+  /* Ensure consistent transform-origin for all child elements */
+  transform-origin: center center;
+}
+
+.cardInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+  transform-style: preserve-3d;
+  cursor: pointer;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  -webkit-transform-style: preserve-3d;
+  /* Ensure consistent transform-origin to prevent axis shift */
+  transform-origin: center center;
+  /* Reset any stray transforms to ensure clean state */
+  transform: perspective(1200px) rotateY(0deg);
+}
+
+.cardInner:not(.flipped):hover {
+  transform: perspective(1200px) rotateX(5deg);
+}
+
+.cardInner.flipped {
+  transform: perspective(1200px) rotateY(180deg);
+}
+
+.cardInner.flipped:hover {
+  transform: perspective(1200px) rotateY(180deg) rotateX(-5deg);
+}
+
+.cardFront,
+.cardBack {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  will-change: transform;
+}
+
+.cardFront {
+  transform: rotateY(0deg);
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  border: 2px solid var(--card-border-color, #444);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-size: cover;
+  background-position: center;
+}
+
+.cardFront::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.cardInner:hover .cardFront::before {
+  transform: translateX(100%);
+}
+
+.cardFront:hover {
+  box-shadow: 0 0 30px var(--hover-shadow-color, #ffffff), 0 8px 25px rgba(0, 0, 0, 0.4);
+  transform: rotateY(0deg) translateZ(10px);
+}
+
+.cardBack {
+  transform: rotateY(180deg);
+  background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+  border: 2px solid #555;
+  background-size: cover;
+  background-position: center;
+  transition: all 0.3s ease;
+}
+
+.cardBack:hover {
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.3), 0 8px 25px rgba(0, 0, 0, 0.5);
+  transform: rotateY(180deg) translateZ(10px) scale(1.02);
+}
+
+/* 点击提示样式 */
+.clickTip {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 1);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 6px 16px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  animation: clickTipPulse 1.5s infinite;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+@keyframes clickTipPulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.08);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+  }
+}
+
+/* 卡片背面图片样式 */
+.cardBackImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  transition: transform 0.3s ease;
+}
+
+.cardInner:hover .cardBackImage {
+  transform: scale(1.02);
+}
+
+/* 翻转动画增强效果 */
+.cardInner.flipping {
+  animation: cardFlipAnimation 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+@keyframes cardFlipAnimation {
+  0% {
+    transform: perspective(1200px) rotateY(0deg);
+  }
+  100% {
+    transform: perspective(1200px) rotateY(180deg);
+  }
+}
+
+/* 卡片激活状态 */
+.cardInner.interactive {
+  transition: all 0.3s ease;
+}
+
+.cardInner.interactive:active {
+  transform: scale(0.95);
+}
+
+/* 移除展开动画以改善用户体验 */
+
+/* 抽卡结果容器 */
+.drawnCardsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding: 40px 20px;
+  max-width: 1200px;
+  width: 100%;
+  min-height: calc(100vh - 120px);
+  box-sizing: border-box;
+}
+
+/* 根据卡牌数量调整布局 */
+.drawnCardsContainer[data-card-count="1"] {
+  justify-content: center;
+}
+
+.drawnCardsContainer[data-card-count="3"] {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  grid-template-rows: auto auto;
+  gap: 20px 20px;
+  justify-content: center;
+  align-items: center;
+}
+
+.drawnCardsContainer[data-card-count="3"] .drawnCard:nth-child(1) {
+  grid-column: 1 / span 1;
+  grid-row: 1;
+}
+
+.drawnCardsContainer[data-card-count="3"] .drawnCard:nth-child(2) {
+  grid-column: 2 / span 1;
+  grid-row: 1;
+}
+
+.drawnCardsContainer[data-card-count="3"] .drawnCard:nth-child(3) {
+  grid-column: 1 / span 2;
+  grid-row: 2;
+  justify-self: center;
+}
+
+.drawnCardsContainer[data-card-count="5"] {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 10px;
+  justify-items: center;
+  align-content: center;
+}
+
+.drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(1) {
+  grid-column: 1 / span 1;
+  grid-row: 1;
+}
+
+.drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(2) {
+  grid-column: 2 / span 1;
+  grid-row: 1;
+}
+
+.drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(3) {
+  grid-column: 1 / span 2;
+  grid-row: 2;
+  justify-self: center;
+}
+
+.drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(4) {
+  grid-column: 1 / span 1;
+  grid-row: 3;
+}
+
+.drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(5) {
+  grid-column: 2 / span 1;
+  grid-row: 3;
+}
+
+.drawnCard {
+  width: 180px;
+  height: 252px;
+  cursor: pointer;
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  perspective: 1200px;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+.drawnCard.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Fix flip state priority and prevent conflicts */
+.drawnCard .cardInner.flipped {
+  transform: perspective(1200px) rotateY(180deg) !important;
+}
+
+/* Override any visible state transforms when flipped on mobile */
+@media (max-width: 768px) {
+  .drawnCard.visible .cardInner.flipped {
+    transform: perspective(1200px) rotateY(180deg) !important;
+  }
+  
+  /* Ensure flipped state cannot be overridden */
+  .drawnCard .cardInner.flipped {
+    animation: none !important;
+  }
+}
+
+.drawnCard.hidden {
+  opacity: 0;
+  transform: translateY(40px);
+}
+
+.drawnCard.interactive {
+  pointer-events: auto;
+}
+
+.drawnCard.nonInteractive {
+  pointer-events: none;
+}
+
+/* 稀有度颜色样式 */
+.rarityCommon {
+  background: linear-gradient(135deg, #8E8E8E 0%, #6E6E6E 100%);
+}
+
+.rarityRare {
+  background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+}
+
+.raritySuperRare {
+  background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%);
+}
+
+.rarityEpic {
+  background: linear-gradient(135deg, #9C27B0 0%, #6A1B9A 100%);
+}
+
+.rarityLegendary {
+  background: linear-gradient(135deg, #FF9800 0%, #E65100 100%);
+}
+
+/* 跳过动画按钮 */
+.skipButton {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+/* 抽到高稀有度时的庆祝特效（红/橙/紫） */
+@keyframes celebrateGlowOrange {
+  0%, 100% { box-shadow: 0 0 12px rgba(255,136,0,0.6), 0 0 28px rgba(255,136,0,0.35); }
+  50% { box-shadow: 0 0 20px rgba(255,170,51,0.9), 0 0 44px rgba(255,136,0,0.6); }
+}
+
+@keyframes celebrateGlowRed {
+  0%, 100% { box-shadow: 0 0 12px rgba(255,71,87,0.6), 0 0 28px rgba(255,71,87,0.35); }
+  50% { box-shadow: 0 0 22px rgba(255,120,130,0.95), 0 0 48px rgba(255,71,87,0.6); }
+}
+
+@keyframes celebrateGlowPurple {
+  0%, 100% { box-shadow: 0 0 12px rgba(156,39,176,0.6), 0 0 28px rgba(156,39,176,0.35); }
+  50% { box-shadow: 0 0 20px rgba(171,71,188,0.9), 0 0 44px rgba(156,39,176,0.6); }
+}
+
+/* Mobile-optimized celebration animations */
+@keyframes celebrateGlowOrangeMobile {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(255,136,0,0.5), 0 0 20px rgba(255,136,0,0.25); 
+    border-color: #ff9800 !important;
+  }
+  50% { 
+    box-shadow: 0 0 15px rgba(255,170,51,0.7), 0 0 30px rgba(255,136,0,0.4); 
+    border-color: #ff9800 !important;
+  }
+}
+
+@keyframes celebrateGlowRedMobile {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(255,71,87,0.5), 0 0 20px rgba(255,71,87,0.25); 
+    border-color: #ff4757 !important;
+  }
+  50% { 
+    box-shadow: 0 0 15px rgba(255,120,130,0.7), 0 0 30px rgba(255,71,87,0.4); 
+    border-color: #ff4757 !important;
+  }
+}
+
+@keyframes celebrateGlowPurpleMobile {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(156,39,176,0.5), 0 0 20px rgba(156,39,176,0.25); 
+    border-color: #9c27b0 !important;
+  }
+  50% { 
+    box-shadow: 0 0 15px rgba(171,71,188,0.7), 0 0 30px rgba(156,39,176,0.4); 
+    border-color: #9c27b0 !important;
+  }
+}
+
+@keyframes confettiFloat {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(-40px) rotate(180deg); opacity: 0; }
+}
+
+/* 作用于抽卡弹窗中的卡片容器 */
+.drawnCard.celebrateOrange .cardFront,
+.drawnCard.celebrateOrange .cardBack {
+  animation: celebrateGlowOrange 1.4s ease-in-out infinite;
+  border-color: #ff9800 !important;
+}
+
+.drawnCard.celebrateRed .cardFront,
+.drawnCard.celebrateRed .cardBack {
+  animation: celebrateGlowRed 1.4s ease-in-out infinite;
+  border-color: #ff4757 !important;
+}
+
+.drawnCard.celebratePurple .cardFront,
+.drawnCard.celebratePurple .cardBack {
+  animation: celebrateGlowPurple 1.4s ease-in-out infinite;
+  border-color: #9c27b0 !important;
+}
+
+/* 顶层粒子特效 */
+.drawnCard.celebrateOrange::after,
+.drawnCard.celebrateRed::after,
+.drawnCard.celebratePurple::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+  background: radial-gradient(circle at 20% 80%, rgba(255,255,255,0.12), transparent 40%),
+              radial-gradient(circle at 80% 20%, rgba(255,255,255,0.12), transparent 42%);
+  filter: blur(0.5px);
+}
+
+/* 细小亮点上浮（未翻开时轻微氛围） */
+.drawnCard.celebrateOrange:not(.flipped)::before,
+.drawnCard.celebrateRed:not(.flipped)::before,
+.drawnCard.celebratePurple:not(.flipped)::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -6px;
+  height: 6px;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.8) 0 2px, transparent 2px 8px);
+  animation: confettiFloat 1.2s linear infinite;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* 翻开瞬间的爆裂粒子（一次性） */
+@keyframes particleBurstOrange {
+  0% { opacity: 0.9; transform: scale(0.6); filter: blur(0px); }
+  100% { opacity: 0; transform: scale(1.8); filter: blur(1px); }
+}
+
+@keyframes particleBurstRed {
+  0% { opacity: 0.95; transform: scale(0.6); filter: blur(0px); }
+  100% { opacity: 0; transform: scale(1.9); filter: blur(1px); }
+}
+
+/* Reveal pop-in 动画 */
+@keyframes popIn {
+  0% { transform: scale(0.92) rotateZ(-0.5deg); }
+  60% { transform: scale(1.06) rotateZ(0.3deg); }
+  100% { transform: scale(1.0) rotateZ(0); }
+}
+
+/* 翻开后的放大效果应用在容器上，避免覆盖 cardInner 的 rotateY 变换 */
+/* Replace :has with a parent flipped class for performance */
+.drawnCard.flipped.celebrateOrange,
+.drawnCard.flipped.celebrateRed {
+  animation: popIn 300ms ease-out both;
+}
+
+/* Temporary layer prewarm to hint the compositor without changing visuals */
+.drawnCard.prewarm .cardInner {
+  will-change: transform;
+}
+
+/* Contain each card to isolate layout and style without clipping glow */
+.drawnCard {
+  contain: layout style size;
+  overflow: visible; /* ensure glow/box-shadow is fully visible */
+}
+
+/* Burst effects will be handled by canvas animation instead */
+/* Keeping the glow effects which are working well */
+
+.skipButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 控制按钮区域 */
+.controlButtons {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+  padding: 0 20px;
+  box-sizing: border-box;
+  max-width: calc(100vw - 40px);
+}
+
+/* 销毁控制区域 */
+.destroyControls {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+.destroyButton {
+  background: linear-gradient(135deg, #ff4757, #ff3742);
+  border: none;
+  color: white;
+  padding: 12px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 71, 87, 0.3);
+  flex: 1;
+  max-width: 300px;
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.destroyButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff3742, #ff2f3a);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4);
+}
+
+.destroyButton:disabled {
+  background: #666;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 卡片选择区域 */
+.cardSelectArea {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 30; /* 确保在最上层 */
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+  transform: scale(1.0);
+  border: 1px solid #007bff;
+  transition: all 0.2s ease;
+  pointer-events: auto !important; /* 强制确保可以点击 */
+  cursor: pointer;
+}
+
+.cardSelectArea:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 6px rgba(0, 123, 255, 0.5);
+}
+
+.cardCheckbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  pointer-events: auto !important; /* 强制确保可以点击 */
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  border: none; /* remove inner square border */
+  border-radius: 50%; /* circle */
+  background: transparent; /* show only outer circle container when unchecked */
+}
+.cardCheckbox:checked {
+  background: #007bff; /* fill inner circle when checked */
+}
+.cardCheckbox:focus {
+  outline: none;
+}

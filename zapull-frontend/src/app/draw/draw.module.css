@@ -1,0 +1,1012 @@
+.drawContainer {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem;
+  background: radial-gradient(circle, #2a2a2a, #1a1a1a);
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.select {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.select option {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+.drawArea {
+  width: 100%;
+  max-width: 1200px;
+  min-height: 400px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  perspective: 1200px;
+  -webkit-perspective: 1200px;
+  perspective-origin: center center;
+  -webkit-perspective-origin: center center;
+}
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+  width: 100%;
+}
+
+.drawButton {
+  padding: 0.75rem 1.5rem;
+  font-size: 1.2rem;
+  color: #fff;
+  background: linear-gradient(135deg, #ffd700, #ffa500);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+}
+
+.drawButton:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.drawButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.card {
+  width: 200px;
+  height: 280px;
+  position: relative;
+  transition: transform 1s;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+.card.revealed .cardInner {
+  transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
+}
+
+/* Generic cardInner - no transforms or transitions here */
+.cardInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+.cardFront,
+.cardBack {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 15px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.cardFront {
+  background: #fff;
+  /* No transform - this should be visible initially (shows card back) */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  position: relative;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: rotateY(0deg);
+  -webkit-transform: rotateY(0deg);
+  z-index: 2;
+}
+
+.cardBackImageContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.cardBackImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cardBack {
+  background: linear-gradient(45deg, #b8860b, #daa520);
+  transform: rotateY(180deg); /* Initially hidden (shows card front after flip) */
+  -webkit-transform: rotateY(180deg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* Removed transition - only parent cardInner should transition */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.cardBack.legendary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, #ffd700, #ff8c00);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 15px;
+}
+
+.cardBack.epic::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, #9932cc, #8a2be2);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 15px;
+}
+
+.cardBack.rare::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, #4169e1, #1e90ff);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 15px;
+}
+
+.cardBack.common::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, #808080, #a9a9a9);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 15px;
+}
+
+.card:hover .cardBack::before {
+  opacity: 0.6;
+}
+
+.cardBackDesign {
+  width: 80%;
+  height: 80%;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.cardImage {
+  width: 80%;
+  height: auto;
+  margin-bottom: 1rem;
+}
+
+.cardName {
+  font-size: 1.2rem;
+  color: #333;
+  margin: 0;
+}
+
+.placeholder {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.animationToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #fff;
+  cursor: pointer;
+}
+
+.animationToggle input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
+  cursor: pointer;
+}
+
+.card.clickable {
+  cursor: pointer;
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+.card.clickable:hover {
+  transform: scale(1.05);
+}
+
+.clickTip {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: pulse 1.5s infinite;
+  z-index: 2;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.1);
+  }
+  100% {
+    opacity: 0.6;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+/* Float animations - temporarily disabled to isolate flip issue
+@keyframes float1 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes float2 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes float3 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes float4 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+*/
+
+/* Removed - animation now only on modal cards */
+
+.celebration {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 100;
+}
+
+.celebrationText {
+  font-size: 1.5rem;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  margin-bottom: 1rem;
+  animation: glow 1.5s ease-in-out infinite alternate;
+}
+
+.celebrationStars {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.celebrationStars::before,
+.celebrationStars::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ffd700;
+  box-shadow: 0 0 10px #ffd700;
+  animation: twinkle 0.8s infinite alternate;
+}
+
+.celebrationStars::before {
+  left: -20px;
+  animation-delay: 0.3s;
+}
+
+.celebrationStars::after {
+  right: -20px;
+  animation-delay: 0.6s;
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+  }
+  to {
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5),
+                0 0 15px rgba(255, 215, 0, 0.3);
+  }
+}
+
+@keyframes twinkle {
+  from {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.3;
+  }
+  to {
+    transform: scale(1.5) rotate(360deg);
+    opacity: 1;
+  }
+}
+
+/* 抽卡动画弹窗样式 */
+.drawModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.drawModalContent {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.closeButton {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  transition: all 0.3s ease;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.drawAnimation {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 0;
+}
+
+.drawingText {
+  position: absolute;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.8rem;
+  color: #ffd700;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+  font-weight: bold;
+  animation: drawingPulse 1.5s ease-in-out infinite;
+  z-index: 1001;
+}
+
+@keyframes drawingPulse {
+  0%, 100% {
+    opacity: 0.7;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+
+/* 弹窗内卡片容器样式 */
+.modalCardsContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.modalCardsGrid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  width: 100%;
+  max-width: 1200px;
+  padding: 20px;
+}
+
+/* 根据卡牌数量调整布局 */
+.modalCardsGrid[data-card-count="1"] {
+  justify-content: center;
+}
+
+.modalCardsGrid[data-card-count="3"] {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.modalCardsGrid[data-card-count="5"] {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+}
+
+.modalCard {
+  width: 180px;
+  height: 250px;
+  position: relative;
+  transition: box-shadow 0.3s ease;
+  opacity: 1;
+  cursor: pointer;
+  perspective: 1200px; /* Add perspective for better 3D effect */
+  -webkit-perspective: 1200px;
+  perspective-origin: center center;
+  -webkit-perspective-origin: center center;
+}
+
+/* Card flip mechanism - single source of truth */
+.modalCard .cardInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transform: rotateY(0deg);
+  -webkit-transform: rotateY(0deg);
+  /* Ensure smooth animation */
+  will-change: transform;
+}
+
+.modalCard.revealed .cardInner {
+  transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
+}
+
+/* Hover effects - disabled during flip */
+.modalCard:not(.revealed):not(.flipping):hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+.modalCard.cardVisible:not(.revealed):not(.flipping):hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+  animation-play-state: paused;
+}
+
+/* 卡背悬停时显示稀有度颜色 - 减少光晕强度 */
+.modalCard:not(.revealed):hover .cardBack.common,
+.modalCard.cardVisible:not(.revealed):hover .cardBack.common,
+.modalCard.cardVisible:hover .cardBack.common {
+  box-shadow: 0 0 10px rgba(169, 169, 169, 0.5), 0 0 20px rgba(169, 169, 169, 0.2);
+}
+
+.modalCard:not(.revealed):hover .cardBack.rare,
+.modalCard.cardVisible:not(.revealed):hover .cardBack.rare,
+.modalCard.cardVisible:hover .cardBack.rare {
+  box-shadow: 0 0 10px rgba(30, 144, 255, 0.5), 0 0 20px rgba(30, 144, 255, 0.2);
+}
+
+.modalCard:not(.revealed):hover .cardBack.legendary,
+.modalCard.cardVisible:not(.revealed):hover .cardBack.legendary,
+.modalCard.cardVisible:hover .cardBack.legendary {
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+/* 卡片移动动画 */
+.modalCard.cardHidden {
+  opacity: 0;
+  transform: translate(100vw, 100vh) scale(0.5);
+  transition: none;
+}
+
+.modalCard.cardVisible {
+  opacity: 1;
+  animation: cardSlideIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) backwards;
+  pointer-events: none; /* 动画期间禁用鼠标事件 */
+}
+
+.modalCard.cardVisible.animationComplete {
+  pointer-events: auto; /* 动画完成后恢复鼠标事件 */
+  animation: none; /* Stop animation completely */
+  transform: none !important; /* Force clear all transforms */
+  opacity: 1;
+}
+
+.modalCard.cardVisible.animationComplete:not(.revealed):hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+@keyframes cardSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* On touch devices, disable hover-scale to avoid conflicting transforms during flip */
+@media (hover: none) {
+  .modalCard:not(.revealed):not(.flipping):hover,
+  .modalCard.cardVisible:not(.revealed):not(.flipping):hover,
+  .modalCard.cardVisible.animationComplete:not(.revealed):hover {
+    transform: none !important;
+  }
+}
+
+/* Removed - already defined above */
+
+@keyframes slideInFromLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+  50% {
+    opacity: 0.5;
+    transform: translateX(-50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 销毁功能样式 */
+.controlButtons {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.destroyControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.destroyButton {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  width: 260px;
+  max-width: 80vw;
+}
+
+.destroyButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.destroyButton:disabled {
+  background: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.cardSelectArea {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cardSelectArea:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.1);
+}
+
+.cardCheckbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #8868FF;
+  z-index: 10;
+}
+
+/* Celebratory effects for orange/red on standalone draw page */
+@keyframes drawCelebrateGlowOrange {
+  0%, 100% { box-shadow: 0 0 12px rgba(255,136,0,0.6), 0 0 28px rgba(255,136,0,0.35); }
+  50% { box-shadow: 0 0 20px rgba(255,170,51,0.9), 0 0 44px rgba(255,136,0,0.6); }
+}
+@keyframes drawCelebrateGlowRed {
+  0%, 100% { box-shadow: 0 0 12px rgba(255,71,87,0.6), 0 0 28px rgba(255,71,87,0.35); }
+  50% { box-shadow: 0 0 22px rgba(255,120,130,0.95), 0 0 48px rgba(255,71,87,0.6); }
+}
+@keyframes drawParticleBurstOrange {
+  0% { opacity: 0.9; transform: scale(0.6); filter: blur(0px); }
+  100% { opacity: 0; transform: scale(1.8); filter: blur(1px); }
+}
+@keyframes drawParticleBurstRed {
+  0% { opacity: 0.95; transform: scale(0.6); filter: blur(0px); }
+  100% { opacity: 0; transform: scale(1.9); filter: blur(1px); }
+}
+@keyframes drawPopInScale {
+  0% { transform: scale(0.92); }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1.0); }
+}
+
+/* Aura glow */
+.modalCard.celebrateOrange .cardFront,
+.modalCard.celebrateOrange .cardBack { animation: drawCelebrateGlowOrange 1.4s ease-in-out infinite; border-color: #ff9800 !important; }
+.modalCard.celebrateRed .cardFront,
+.modalCard.celebrateRed .cardBack { animation: drawCelebrateGlowRed 1.4s ease-in-out infinite; border-color: #ff4757 !important; }
+
+/* Ambient sparkles */
+.modalCard.celebrateOrange::after,
+.modalCard.celebrateRed::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+  background: radial-gradient(circle at 20% 80%, rgba(255,255,255,0.12), transparent 40%),
+              radial-gradient(circle at 80% 20%, rgba(255,255,255,0.12), transparent 42%);
+  filter: blur(0.5px);
+}
+
+/* One-shot burst when revealed - use container to avoid overriding rotateY */
+.modalCard.celebrateOrange.revealed { animation: drawPopInScale 300ms ease-out both; }
+.modalCard.celebrateRed.revealed { animation: drawPopInScale 300ms ease-out both; }
+
+/* Put burst on the container so it is not part of the 3D stack */
+.modalCard.celebrateOrange.revealed::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 14px;
+  pointer-events: none;
+  z-index: 3;
+  background: radial-gradient(circle, rgba(255,200,120,0.75) 0%, rgba(255,152,0,0.45) 35%, rgba(255,152,0,0) 65%);
+  animation: drawParticleBurstOrange 700ms ease-out 1 forwards;
+}
+.modalCard.celebrateRed.revealed::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 14px;
+  pointer-events: none;
+  z-index: 3;
+  background: radial-gradient(circle, rgba(255,140,150,0.75) 0%, rgba(255,71,87,0.45) 35%, rgba(255,71,87,0) 65%);
+  animation: drawParticleBurstRed 720ms ease-out 1 forwards;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .modalCard {
+    /* Adjust perspective for mobile screens */
+    perspective: 1000px;
+    -webkit-perspective: 1000px;
+    /* Ensure container doesn't interfere with celebration animations */
+    contain: layout style;
+    overflow: visible;
+  }
+  
+  .modalCard .cardInner {
+    /* Ensure smooth transitions on mobile */
+    -webkit-transition: -webkit-transform 0.6s;
+    transition: transform 0.6s;
+    will-change: transform;
+  }
+  
+  /* Force hardware acceleration on mobile */
+  .modalCard .cardInner,
+  .modalCard .cardFront,
+  .modalCard .cardBack {
+    -webkit-transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+  
+  /* Ensure proper 3D rendering on iOS */
+  .modalCard {
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
+  }
+  
+  /* Fix for mobile Safari */
+  .modalCard.revealed .cardInner {
+    -webkit-transform: rotateY(180deg);
+    transform: rotateY(180deg);
+  }
+  
+  /* Disable hover effects on touch devices */
+  .modalCard:hover {
+    transform: none;
+  }
+  
+  /* Fix celebration effect positioning on mobile */
+  .modalCard.celebrateOrange::after,
+  .modalCard.celebrateRed::after {
+    /* Ensure sparkle effects stay positioned correctly */
+    position: absolute;
+    top: 50% !important;
+    left: 50% !important;
+    width: 120% !important;
+    height: 120% !important;
+    transform: translate(-50%, -50%) !important;
+    border-radius: 12px;
+    /* Remove blur on mobile for better performance and positioning */
+    filter: none;
+    /* Ensure proper stacking */
+    z-index: 2;
+    /* Override inset for proper centering */
+    inset: unset !important;
+  }
+  
+  /* Mobile-specific celebration glow adjustments */
+  .modalCard.celebrateOrange .cardFront,
+  .modalCard.celebrateOrange .cardBack {
+    /* Reduce glow intensity on mobile for better visibility */
+    animation: drawCelebrateGlowOrangeMobile 1.4s ease-in-out infinite;
+  }
+  
+  .modalCard.celebrateRed .cardFront,
+  .modalCard.celebrateRed .cardBack {
+    /* Reduce glow intensity on mobile for better visibility */
+    animation: drawCelebrateGlowRedMobile 1.4s ease-in-out infinite;
+  }
+  
+  /* Mobile-optimized celebration animations */
+  @keyframes drawCelebrateGlowOrangeMobile {
+    0%, 100% { 
+      box-shadow: 0 0 8px rgba(255,136,0,0.5), 0 0 20px rgba(255,136,0,0.25); 
+      border-color: #ff9800 !important;
+    }
+    50% { 
+      box-shadow: 0 0 15px rgba(255,170,51,0.7), 0 0 30px rgba(255,136,0,0.4); 
+      border-color: #ff9800 !important;
+    }
+  }
+  
+  @keyframes drawCelebrateGlowRedMobile {
+    0%, 100% { 
+      box-shadow: 0 0 8px rgba(255,71,87,0.5), 0 0 20px rgba(255,71,87,0.25); 
+      border-color: #ff4757 !important;
+    }
+    50% { 
+      box-shadow: 0 0 15px rgba(255,120,130,0.7), 0 0 30px rgba(255,71,87,0.4); 
+      border-color: #ff4757 !important;
+    }
+  }
+  
+  /* Grid adjustments for mobile */
+  .modalCardsGrid[data-card-count="3"] {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  
+  .modalCardsGrid[data-card-count="5"] {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+  
+  /* Smaller cards on mobile */
+.modalCard {
+  width: 100px;
+  height: 140px;
+}
+
+/* Ensure centered controls fit on small screens */
+@media (max-width: 768px) {
+  .controlButtons {
+    gap: 10px;
+  }
+  .destroyButton {
+    width: 220px;
+    max-width: 90vw;
+  }
+  .confirmButton {
+    width: 220px;
+    max-width: 90vw;
+  }
+}
+  
+  .modalCardsGrid {
+    gap: 0.75rem;
+    padding: 10px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  
+  .modalCardsContainer {
+    padding: 20px;
+  }
+}
+
+/* Even smaller screens */
+@media (max-width: 480px) {
+  .modalCard {
+    width: 85px;
+    height: 120px;
+    perspective: 800px;
+    -webkit-perspective: 800px;
+    /* Ensure consistent positioning on small screens */
+    contain: layout style;
+    overflow: visible;
+  }
+  
+  /* Further reduce celebration effects on small screens */
+  .modalCard.celebrateOrange::after,
+  .modalCard.celebrateRed::after {
+    /* Use explicit positioning instead of inset */
+    top: 50% !important;
+    left: 50% !important;
+    width: 110% !important;
+    height: 110% !important;
+    transform: translate(-50%, -50%) !important;
+    border-radius: 10px;
+    /* Override any inset */
+    inset: unset !important;
+  }
+  
+  .modalCardsGrid[data-card-count="1"] {
+    justify-content: center;
+  }
+  
+  .modalCardsGrid[data-card-count="3"] {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 280px;
+    margin: 0 auto;
+    gap: 0.5rem;
+  }
+  
+  .modalCardsGrid[data-card-count="5"] {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 280px;
+    margin: 0 auto;
+    gap: 0.25rem;
+  }
+  
+  .modalCardsContainer {
+    padding: 15px;
+  }
+  
+  /* Ensure modal content doesn't overflow */
+  .drawModalContent {
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px;
+  }
+}
+
+/* Prevent animation jitter when flipping */
+.modalCard.flipping {
+  pointer-events: none;
+}
+
+.modalCard.flipping .cardInner {
+  /* Lock the transform during flip to prevent double-trigger issues */
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Prevent transform interference during animation */
+  will-change: transform;
+}
+
+/* Ensure flipping cards can't be double-clicked */
+.modalCard.flipping:hover {
+  transform: none !important;
+  transition: none !important;
+}
+
+/* iOS-specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .modalCard .cardInner {
+    -webkit-transition: -webkit-transform 0.6s;
+    transition: transform 0.6s;
+  }
+  
+  .modalCard .cardFront,
+  .modalCard .cardBack {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-transform: translateZ(0);
+  }
+  
+  /* Additional iOS flip stability */
+  .modalCard.flipping .cardInner {
+    -webkit-transition: -webkit-transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}

@@ -1,0 +1,238 @@
+from fastapi import APIRouter, HTTPException, Query, Path, Depends
+from google.cloud.firestore_v1 import AsyncClient
+from typing import Optional
+
+from config import get_logger, get_firestore_client
+from service.user_service import get_all_users, get_user_by_id, check_user_admin
+from service.achievement_service import award_achievement_to_user, get_user_achievements
+from models.schemas import UserListResponse, User
+from models.achievement_schemas import AwardAchievementRequest, AwardAchievementResponse
+
+logger = get_logger(__name__)
+
+router = APIRouter(
+    prefix="/users",
+    tags=["users"],
+    responses={404: {"description": "Not found"}},
+)
+
+@router.get("/", response_model=UserListResponse)
+async def get_all_users_endpoint(
+    page: int = Query(1, description="Page number to retrieve", ge=1),
+    per_page: int = Query(10, description="Number of items per page", ge=1, le=100),
+    sort_by: str = Query("pointsBalance", description="Field to sort by (pointsBalance, totalCashRecharged, totalPointsSpent, createdAt, displayName, level)"),
+    sort_order: str = Query("desc", description="Sort order (asc or desc)"),
+    search_query: Optional[str] = Query(None, description="Search query to filter users by displayName"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> UserListResponse:
+    """
+    Get all users with pagination, sorting, and search capabilities.
+    
+    This endpoint allows you to:
+    - Paginate through users with customizable page size
+    - Sort by various fields (pointsBalance, totalCashRecharged, totalPointsSpent, etc.)
+    - Search users by displayName
+    
+    Args:
+        page: Page number (starting from 1)
+        per_page: Number of users per page (max 100)
+        sort_by: Field to sort by
+        sort_order: Sort order (asc or desc)
+        search_query: Optional search term to filter users by displayName
+        db: Firestore database client (injected)
+    
+    Returns:
+        UserListResponse containing users, pagination info, and applied filters
+    """
+    try:
+        logger.info(f"Getting users - page: {page}, per_page: {per_page}, sort_by: {sort_by}, sort_order: {sort_order}, search: {search_query}")
+        
+        # Validate per_page
+        if per_page > 100:
+            per_page = 100
+        
+        # Call the service function
+        result = await get_all_users(
+            db=db,
+            page=page,
+            per_page=per_page,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search_query=search_query
+        )
+        
+        logger.info(f"Successfully retrieved {len(result.users)} users (total: {result.pagination.total_items})")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error getting users: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+@router.get("/{user_id}", response_model=User)
+async def get_user_by_id_endpoint(
+    user_id: str = Path(..., description="The ID of the user to retrieve"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> User:
+    """
+    Get a user by their ID.
+    
+    Args:
+        user_id: The ID of the user to retrieve
+        db: Firestore database client (injected)
+    
+    Returns:
+        User object containing all user information
+        
+    Raises:
+        HTTPException: 404 if user not found, 500 for server errors
+    """
+    try:
+        logger.info(f"Getting user by ID: {user_id}")
+        
+        # Call the service function
+        user = await get_user_by_id(user_id, db)
+        
+        if not user:
+            logger.info(f"User with ID {user_id} not found")
+            raise HTTPException(
+                status_code=404,
+                detail=f"User with ID {user_id} not found"
+            )
+        
+        logger.info(f"Successfully retrieved user {user_id}")
+        return user
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error getting user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+@router.get("/{user_id}/is-admin")
+async def check_user_admin_endpoint(
+    user_id: str = Path(..., description="The ID of the user to check"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> dict:
+    """
+    Check if a user has admin privileges.
+    
+    Args:
+        user_id: The ID of the user to check
+        db: Firestore database client (injected)
+    
+    Returns:
+        JSON object with 'is_admin' boolean field
+        
+    Raises:
+        HTTPException: 500 for server errors
+    """
+    try:
+        logger.info(f"Checking admin status for user: {user_id}")
+        
+        # Call the service function
+        is_admin = await check_user_admin(user_id, db)
+        
+        logger.info(f"User {user_id} admin status: {is_admin}")
+        return {"is_admin": is_admin}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error checking admin status for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+@router.post("/{user_id}/award-achievement", response_model=AwardAchievementResponse)
+async def award_achievement_endpoint(
+    user_id: str = Path(..., description="The ID of the user to award the achievement to"),
+    achievement_id: str = Query(..., description="The ID of the achievement to award"),
+    notes: Optional[str] = Query(None, description="Optional notes about the award")
+) -> AwardAchievementResponse:
+    """
+    Award an achievement to a user.
+    
+    Args:
+        user_id: The ID of the user to award the achievement to
+        achievement_id: The ID of the achievement to award
+        notes: Optional notes about the award
+    
+    Returns:
+        AwardAchievementResponse: Response containing success status and user achievement data
+    
+    Raises:
+        HTTPException: 400 if user already has achievement, 404 if user or achievement not found, 500 for server errors
+    """
+    try:
+        logger.info(f"Awarding achievement {achievement_id} to user {user_id}")
+        
+        # Create the award request
+        award_request = AwardAchievementRequest(
+            user_id=user_id,
+            achievement_id=achievement_id,
+            notes=notes
+        )
+        
+        # Call the service function
+        result = await award_achievement_to_user(award_request)
+        
+        logger.info(f"Successfully awarded achievement {achievement_id} to user {user_id}")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error awarding achievement {achievement_id} to user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+@router.get("/{user_id}/achievements")
+async def get_user_achievements_endpoint(
+    user_id: str = Path(..., description="The ID of the user to get achievements for"),
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(10, ge=1, le=100, description="Items per page")
+) -> dict:
+    """
+    Get achievements earned by a specific user.
+    
+    Args:
+        user_id: The ID of the user to get achievements for
+        page: Page number (starts from 1)
+        size: Number of items per page (between 1 and 100)
+    
+    Returns:
+        Dictionary containing user achievements and pagination info
+    
+    Raises:
+        HTTPException: 500 for server errors
+    """
+    try:
+        logger.info(f"Getting achievements for user {user_id} - page: {page}, size: {size}")
+        
+        # Call the service function
+        result = await get_user_achievements(user_id, page, size)
+        
+        logger.info(f"Successfully retrieved {len(result['achievements'])} achievements for user {user_id}")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error getting achievements for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )

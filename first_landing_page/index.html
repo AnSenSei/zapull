@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zapull - Digital TCG Collecting Platform | Trade Cards Online</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/zapull_black.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/zapull_black.png">
+    <link rel="shortcut icon" type="image/png" href="/static/zapull_black.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/zapull_black.png">
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Zapull is the ultimate digital TCG collecting platform. Open packs digitally, craft cards, earn free shipping, and trade with collectors worldwide. Join the future of trading card games.">
+    <meta name="keywords" content="TCG, trading card game, digital collecting, Pokemon cards, Magic cards, Yu-Gi-Oh cards, online card trading, digital packs, card marketplace, TCG online, card collecting platform">
+    <meta name="author" content="Zapull">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://zapull-landing-351785787544.us-central1.run.app">
+    
+    <!-- Open Graph Tags for Social Media -->
+    <meta property="og:title" content="Zapull - Revolutionizing Digital TCG Collecting">
+    <meta property="og:description" content="Experience seamless digital-to-physical collecting. Open packs, craft cards, and build your legacy with Zapull.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://zapull-landing-351785787544.us-central1.run.app">
+    <meta property="og:image" content="https://zapull-landing-351785787544.us-central1.run.app/og-image.jpg">
+    <meta property="og:site_name" content="Zapull">
+    
+    <!-- Twitter Card Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Zapull - Digital TCG Collecting Platform">
+    <meta name="twitter:description" content="Open packs digitally, craft cards, trade freely. Join the TCG revolution.">
+    <meta name="twitter:image" content="https://zapull-landing-351785787544.us-central1.run.app/twitter-card.jpg">
+    
+    <!-- Structured Data for Search Engines -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Zapull",
+        "description": "Digital TCG collecting platform revolutionizing how collectors open packs, trade cards, and build their collections",
+        "url": "https://zapull-landing-351785787544.us-central1.run.app",
+        "logo": "https://zapull-landing-351785787544.us-central1.run.app/static/zapull_black.png",
+        "sameAs": [
+            "https://twitter.com/zapull",
+            "https://facebook.com/zapull",
+            "https://instagram.com/zapull"
+        ]
+    }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #0a0a0a;
+            color: #ffffff;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Section Spacing */
+        .section {
+            padding: 80px 0;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #b794f6 0%, #9f7aea 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* About Zapull Section Styling */
+        .zapull-section {
+            position: relative;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(159, 122, 234, 0.08) 50%, rgba(245, 158, 11, 0.05) 100%);
+            padding: 60px 0;
+            overflow: hidden;
+        }
+
+        .zapull-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(159, 122, 234, 0.1) 0%, transparent 70%);
+            animation: pulse 15s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+        }
+
+        .zapull-heading {
+            font-size: 36px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(135deg, #10b981 0%, #3b82f6 50%, #f59e0b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 80px rgba(159, 122, 234, 0.5);
+        }
+
+        /* Zapull Description Styling */
+        .zapull-description {
+            max-width: 950px;
+            margin: 0 auto;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .zapull-description p {
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            line-height: 1.8;
+            margin-bottom: 28px;
+        }
+
+        .zapull-intro {
+            font-size: 16px;
+            font-weight: 600;
+            color: #f0f0f0;
+            margin-bottom: 12px;
+            letter-spacing: -0.025em;
+        }
+
+        .zapull-body {
+            font-size: 13px;
+            font-weight: 400;
+            color: #e0e0e0;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .zapull-tagline {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 16px 0 0 0;
+            letter-spacing: -0.02em;
+            line-height: 1.3;
+        }
+
+        .zapull-tagline .collect {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+
+        .zapull-tagline .trade {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+
+        .zapull-tagline .build {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+
+        .zapull-welcome {
+            font-size: 18px;
+            font-weight: 800;
+            color: #f0f0f0;
+            margin-bottom: 24px;
+            letter-spacing: -0.025em;
+        }
+
+        h2 {
+            font-size: 36px;
+            font-weight: 600;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        h3 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        p {
+            font-size: 16px;
+            color: #a0a0a0;
+            line-height: 1.8;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(159, 122, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #9f7aea;
+            border: 2px solid #9f7aea;
+        }
+
+        .btn-secondary:hover {
+            background: #9f7aea;
+            color: white;
+        }
+
+        /* Navigation Header */
+        .header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid rgba(159, 122, 234, 0.2);
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+        }
+
+        .logo {
+            height: 50px;
+        }
+
+        .logo img {
+            height: 100%;
+            width: auto;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #a0a0a0;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #9f7aea;
+        }
+
+        .nav-signup-btn {
+            background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .nav-signup-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(159, 122, 234, 0.3);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 140px 0 80px;
+            text-align: center;
+            background: radial-gradient(ellipse at center, rgba(159, 122, 234, 0.1) 0%, transparent 70%);
+        }
+
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: 36px;
+            margin-bottom: 30px;
+        }
+
+        .hero p {
+            font-size: 20px;
+            margin-bottom: 40px;
+            color: #b0b0b0;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .hero-image {
+            margin-top: 60px;
+            width: 100%;
+            max-width: 1400px;
+            height: 500px;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-image video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+        }
+
+        /* Process Container - Wider for bigger images */
+        .process-container {
+            max-width: 1400px !important;
+        }
+
+        /* Process Grid Section */
+        .process-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 60px;
+        }
+
+        .process-card {
+            text-align: center;
+            padding: 0;
+            background: transparent;
+            border: 3px solid;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        /* Colored borders for each step */
+        .process-card:nth-child(1) {
+            border-color: rgb(204, 136, 0); /* Golden/amber for Step 1 */
+        }
+
+        .process-card:nth-child(2) {
+            border-color: rgb(204, 136, 0); /* Golden/amber for Step 2 */
+        }
+
+        .process-card:nth-child(3) {
+            border-color: rgb(204, 136, 0); /* Golden/amber for Step 3 */
+        }
+
+        .process-card:nth-child(4) {
+            border-color: rgb(204, 136, 0); /* Golden/amber for Step 4 */
+        }
+
+        .process-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .process-icon {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .process-icon img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Features Section */
+        .features {
+            background: rgba(159, 122, 234, 0.02);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+        }
+
+        .feature-card {
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(159, 122, 234, 0.2);
+            border-radius: 12px;
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: rgba(159, 122, 234, 0.2);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+
+        /* Footer CTA */
+        .footer-cta {
+            background: linear-gradient(135deg, rgba(159, 122, 234, 0.1) 0%, rgba(128, 90, 213, 0.1) 100%);
+            text-align: center;
+            padding: 100px 0;
+            border-radius: 20px;
+            margin: 0 20px;
+        }
+
+        .footer-cta h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .footer-cta p {
+            font-size: 20px;
+            margin-bottom: 40px;
+        }
+
+        /* Mobile Navigation */
+        .mobile-nav {
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 36px;
+            }
+
+            h2 {
+                font-size: 28px;
+            }
+
+            .footer-cta {
+                padding: 40px 0;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .mobile-nav {
+                display: block;
+            }
+
+            .nav-signup-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            .hero h1 {
+                font-size: 24px;
+                margin-top: 0;
+                padding-top: 20px;
+            }
+
+            /* Mobile-optimized Zapull description */
+            .zapull-description {
+                max-width: 100%;
+                padding: 0 15px;
+            }
+
+            .zapull-intro {
+                font-size: 15px;
+                line-height: 1.4;
+                margin-bottom: 8px;
+            }
+
+            .zapull-body {
+                font-size: 14px;
+                line-height: 1.4;
+                margin-bottom: 6px;
+            }
+
+            .zapull-tagline {
+                font-size: 16px;
+                line-height: 1.2;
+                margin: 10px 0 0 0;
+            }
+
+            .zapull-description p {
+                margin-bottom: 12px;
+            }
+
+            .hero-content {
+                padding: 0 5px;
+                margin-top: 20px !important;
+            }
+
+            .hero {
+                padding: 90px 0 20px !important;
+            }
+
+            .hero-content p {
+                margin-top: 40px;
+                background: none !important;
+                -webkit-background-clip: unset !important;
+                -webkit-text-fill-color: unset !important;
+                color: #b794f6 !important;
+                text-shadow: 0 0 15px rgba(159, 122, 234, 0.6) !important;
+            }
+
+            .hero-image {
+                width: 100%;
+                height: 200px;
+                margin-top: 40px;
+            }
+
+            .section {
+                padding: 20px 0;
+            }
+
+            /* Zapull section mobile optimizations */
+            .zapull-section {
+                padding: 20px 0 !important;
+            }
+
+            .zapull-heading {
+                font-size: 24px !important;
+                margin-bottom: 20px !important;
+            }
+
+            .zapull-section::before {
+                display: none;
+            }
+
+            /* Mobile grid layouts - 2 items per row */
+            .process-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 2px;
+                margin-top: 40px;
+            }
+            
+            /* Reduce container padding for process section on mobile */
+            .process-container {
+                padding: 0 5px;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+
+            /* Smaller fonts for process and feature cards */
+            .process-card {
+                padding: 0;
+            }
+
+            .process-icon {
+                width: 100%;
+                border-radius: 12px;
+                overflow: hidden;
+            }
+            
+            .process-icon img {
+                width: 100%;
+                height: auto;
+                display: block;
+            }
+
+            .feature-card {
+                padding: 20px 15px;
+            }
+
+            .feature-card h3 {
+                font-size: 16px;
+                margin-bottom: 8px;
+            }
+
+            .feature-card p {
+                font-size: 13px;
+                line-height: 1.5;
+            }
+
+            .feature-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+                margin-bottom: 15px;
+            }
+
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            margin: 10% auto;
+            padding: 40px;
+            border: 1px solid rgba(159, 122, 234, 0.3);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #9f7aea;
+            text-decoration: none;
+        }
+
+        .modal-content h2 {
+            color: #ffffff;
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-align: center;
+        }
+
+        .modal-content p {
+            color: #b0b0b0;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        .modal-content form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .modal-content input[type="email"] {
+            padding: 15px;
+            border: 2px solid rgba(159, 122, 234, 0.3);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .modal-content input[type="email"]:focus {
+            outline: none;
+            border-color: #9f7aea;
+        }
+
+        .modal-content input[type="email"]::placeholder {
+            color: #888;
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            font-size: 14px;
+            margin-top: -10px;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            text-align: center;
+            color: #10b981;
+        }
+
+        .success-message h3 {
+            color: #10b981;
+            margin-bottom: 10px;
+        }
+
+        .success-message p {
+            color: #b0b0b0;
+        }
+
+        @media (max-width: 768px) {
+            .modal-content {
+                margin: 15% auto;
+                padding: 30px 20px;
+                width: 95%;
+            }
+            
+            .modal-content h2 {
+                font-size: 24px;
+            }
+        }
+
+        /* Social Media Icons */
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .social-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(159, 122, 234, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #a0a0a0;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .social-icon:hover {
+            background: rgba(159, 122, 234, 0.2);
+            border-color: #9f7aea;
+            color: #9f7aea;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(159, 122, 234, 0.3);
+        }
+
+        .social-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .social-links {
+                gap: 15px;
+            }
+            
+            .social-icon {
+                width: 45px;
+                height: 45px;
+            }
+            
+            .social-icon svg {
+                width: 20px;
+                height: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="container">
+            <nav class="nav-container">
+                <div class="logo">
+                    <img src="/static/zapull_black.png" alt="Zapull Logo">
+                </div>
+                <div class="nav-links">
+                    <a href="#how">How It Works</a>
+                    <a href="#features">Features</a>
+                    <button class="nav-signup-btn signup-btn">Sign Up</button>
+                </div>
+                <div class="mobile-nav">
+                    <button class="nav-signup-btn signup-btn">Sign Up</button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero section">
+        <div class="container">
+
+                <h1>Experience the future of TCG collecting</h1>
+            </div>
+            <div class="hero-image" role="img" aria-label="Zapull digital card pack opening animation">
+                <video autoplay muted loop playsinline style="width: 100%; height: 100%; object-fit: cover; border-radius: 12px;">
+                    <source src="/static/纯动效.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </div>
+    </section>
+
+    <!-- Process Explanation Section -->
+    <section class="section" id="how">
+        <div class="container process-container">
+            <h2>How It Works</h2>
+            <div class="process-grid">
+                <div class="process-card">
+                    <div class="process-icon">
+                        <img src="/static/step1.png" alt="Step 1">
+                    </div>
+                </div>
+                <div class="process-card">
+                    <div class="process-icon">
+                        <img src="/static/step2.png" alt="Step 2">
+                    </div>
+                </div>
+                <div class="process-card">
+                    <div class="process-icon">
+                        <img src="/static/step3.png" alt="Step 3">
+                    </div>
+                </div>
+                <div class="process-card">
+                    <div class="process-icon">
+                        <img src="/static/step4.png" alt="Step 4">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features section" id="features">
+        <div class="container">
+            <h2>Core Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🏆</div>
+                    <h3>Achievement System</h3>
+                    <p>Unlock rewards and badges as you grow your collection. Complete challenges to earn exclusive perks and showcase your collector status.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📦</div>
+                    <h3>Free Shipping</h3>
+                    <p>Earn free shipping by reaching coins milestones. The more you collect and engage, the more you save on delivery costs.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛒</div>
+                    <h3>Marketplace</h3>
+                    <p>Buy, sell, and trade cards with collectors worldwide. Set your prices, browse listings, and build your dream collection.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">✨</div>
+                    <h3>Mystery Feature</h3>
+                    <p>Something special is coming. A unique system that will revolutionize how you interact with your collection. Stay tuned!</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- About Zapull Section -->
+    <section class="section zapull-section">
+        <div class="container">
+            <h2 class="zapull-heading">About Zapull</h2>
+            <div class="zapull-description">
+                <p class="zapull-intro">
+                    At Zapull, we're building the ultimate ecosystem for modern collectors. We believe collecting should be thrilling, flexible, and rewarding – without the burden of bulk storage or dead-end pulls.
+                </p>
+                <p class="zapull-body">
+                    Our vision is simple: create a seamless digital-to-physical collecting experience where every card has value. Open packs digitally and receive only the cards you want shipped to your door. Earn free shipping by hitting coins milestones, sell unwanted cards back instantly for coins, or list them on our integrated marketplace to trade with fellow collectors.
+                </p>
+                <p class="zapull-body">
+                    We're more than a pack-opening platform – we're crafting the future of TCG collecting, where strategy meets excitement, and every collector controls their journey.
+                </p>
+                <p class="zapull-tagline">
+                    <span class="collect">Collect smarter.</span> <span class="trade">Trade freely.</span> <span class="build">Build your legacy.</span>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer CTA Section -->
+    <section class="section">
+        <div class="footer-cta">
+            <h2>Ready to Get Started?</h2>
+            <p>Join our list to be notified and receive special rewards at launch</p>
+            <button class="btn btn-primary signup-btn" style="font-size: 20px; padding: 16px 40px;">Sign Up Now</button>
+        </div>
+    </section>
+
+    <!-- Email Signup Modal -->
+    <div id="emailModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Join Our Launch List</h2>
+            <p>Be the first to know when Zapull launches and receive special rewards!</p>
+            <form id="emailForm">
+                <input type="email" id="emailInput" placeholder="Enter your email address" required>
+                <div id="emailError" class="error-message"></div>
+                <button type="submit" class="btn btn-primary">Subscribe</button>
+            </form>
+            <div id="successMessage" class="success-message" style="display: none;">
+                <h3>Thank you!</h3>
+                <p>You've been added to our launch list. We'll notify you when Zapull goes live!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Add scroll effect to header
+        window.addEventListener('scroll', function() {
+            const header = document.querySelector('.header');
+            if (window.scrollY > 50) {
+                header.style.boxShadow = '0 2px 20px rgba(0,0,0,0.5)';
+            } else {
+                header.style.boxShadow = 'none';
+            }
+        });
+    </script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script>
+        // Firebase configuration for web SDK (only API key needed from env)
+        const firebaseConfig = {
+            apiKey: "{{FIREBASE_API_KEY}}",
+            authDomain: "seventh-program-433718-h8.firebaseapp.com",
+            projectId: "seventh-program-433718-h8",
+            storageBucket: "seventh-program-433718-h8.appspot.com"
+        };
+
+        // Initialize Firebase
+        let db = null;
+        let isFirebaseInitialized = false;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            isFirebaseInitialized = true;
+            const envType = window.location.hostname === 'localhost' ? 'local development' : 'Cloud Run';
+            console.log(`Successfully initialized Firebase for project ${firebaseConfig.projectId} in ${envType} environment`);
+        } catch (error) {
+            console.error('Failed to initialize Firebase:', error);
+            isFirebaseInitialized = false;
+        }
+
+        // Email validation function
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        // Function to save email to Firestore
+        async function saveEmailToFirestore(email) {
+            if (!isFirebaseInitialized || !db) {
+                console.error('Firebase is not initialized - using mock save');
+                // Mock success for testing
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return true;
+            }
+
+            try {
+                await db.collection('emails').doc(email).set({
+                    email: email,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log(`Successfully saved email ${email} to Firestore`);
+                return true;
+            } catch (error) {
+                console.error('Error saving email to Firestore:', error);
+                return false;
+            }
+        }
+
+        // Modal functions
+        function openModal() {
+            document.getElementById('emailModal').style.display = 'block';
+            // Reset form display to ensure it shows properly
+            document.getElementById('emailForm').style.display = 'flex';
+            document.getElementById('successMessage').style.display = 'none';
+            document.getElementById('emailInput').value = '';
+            document.getElementById('emailError').textContent = '';
+        }
+
+        function closeModal() {
+            document.getElementById('emailModal').style.display = 'none';
+            document.getElementById('emailForm').style.display = 'flex';
+            document.getElementById('successMessage').style.display = 'none';
+            document.getElementById('emailInput').value = '';
+            document.getElementById('emailError').textContent = '';
+            // Reset button state
+            const submitBtn = document.getElementById('emailForm').querySelector('button[type="submit"]');
+            submitBtn.textContent = 'Subscribe';
+            submitBtn.disabled = false;
+        }
+
+        // Add event listeners when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get modal elements
+            const modal = document.getElementById('emailModal');
+            const closeBtn = document.querySelector('.close');
+            const signupButtons = document.querySelectorAll('.signup-btn');
+            const emailForm = document.getElementById('emailForm');
+            const emailInput = document.getElementById('emailInput');
+            const emailError = document.getElementById('emailError');
+
+            // Add click event to all signup buttons
+            signupButtons.forEach(button => {
+                button.addEventListener('click', openModal);
+            });
+
+            // Close modal when clicking the X
+            closeBtn.addEventListener('click', closeModal);
+
+            // Close modal when clicking outside of it
+            window.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
+            // Handle form submission
+            emailForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const email = emailInput.value.trim();
+                emailError.textContent = '';
+
+                // Validate email
+                if (!validateEmail(email)) {
+                    emailError.textContent = 'Please enter a valid email address';
+                    return;
+                }
+
+                // Show loading state
+                const submitBtn = emailForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Subscribing...';
+                submitBtn.disabled = true;
+
+                // Save to Firestore
+                const success = await saveEmailToFirestore(email);
+
+                if (success) {
+                    // Show success message
+                    document.getElementById('emailForm').style.display = 'none';
+                    document.getElementById('successMessage').style.display = 'block';
+                    
+                    // Auto-close modal after 3 seconds
+                    setTimeout(() => {
+                        closeModal();
+                    }, 3000);
+                } else {
+                    emailError.textContent = 'Something went wrong. Please try again.';
+                    // Reset button state on error
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+
+    <!-- Footer with Social Media Links -->
+    <footer style="background: rgba(10, 10, 10, 0.95); padding: 40px 0; border-top: 1px solid rgba(159, 122, 234, 0.2);">
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div class="social-links">
+                    <a href="https://www.instagram.com/zapulltcg?igsh=MXMweDA4eGgwdTg4bA%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" class="social-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                        </svg>
+                    </a>
+                    <a href="https://www.facebook.com/share/197jCHcTnj/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" class="social-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                    </a>
+                    <a href="https://x.com/zapulltcg?s=21" target="_blank" rel="noopener noreferrer" class="social-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                    </a>
+                    <a href="https://www.tiktok.com/@zapulltcg?_t=ZP-8xphDdzcxmJ&_r=1" target="_blank" rel="noopener noreferrer" class="social-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+                        </svg>
+                    </a>
+                    <a href="https://discord.gg/WjjHxsjCrm" target="_blank" rel="noopener noreferrer" class="social-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419-.0002 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1568 2.4189Z"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+            <div style="text-align: center; padding-top: 20px; border-top: 1px solid rgba(159, 122, 234, 0.1);">
+                <p style="color: #666; font-size: 14px; margin: 0;">© 2024 Zapull. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

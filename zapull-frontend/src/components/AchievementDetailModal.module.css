@@ -1,0 +1,548 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal {
+  background: linear-gradient(135deg, #1A1B2C 0%, #2A2B3D 100%);
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  border: 2px solid #8868FF;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.closeButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 20px;
+  color: #fff;
+  z-index: 10;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.loading, .error, .noData {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #b0b0b0;
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error {
+  color: #ef4444;
+}
+
+.retryButton {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.retryButton:hover {
+  background: #5a67d8;
+}
+
+.content {
+  color: white;
+}
+
+/* New modal body structure for better mobile layout */
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: calc(90vh - 40px); /* Account for overlay padding */
+  color: white;
+}
+
+.scrollableContent {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 8px;
+  /* Enable smooth scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+}
+
+.actionButtons {
+  flex-shrink: 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.deleteButton {
+  padding: 12px 24px;
+  background-color: #DC2626;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px; /* Ensure minimum touch target size */
+}
+
+.deleteButton:hover {
+  background-color: #B91C1C;
+}
+
+.deleteButton:active {
+  transform: translateY(1px);
+}
+
+
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.iconContainer {
+  position: relative;
+  flex-shrink: 0;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  padding: 14px;
+  background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+  box-shadow: 0 20px 60px rgba(139, 92, 246, 0.35);
+}
+
+.icon {
+  position: absolute;
+  inset: 14px; /* match padding in container */
+  width: auto;
+  height: auto;
+  border-radius: 50%;
+  object-fit: contain;
+  background: #1E1F2E;
+  border: 2px solid rgba(74, 62, 119, 0.8);
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+}
+
+.placeholderIcon {
+  position: absolute;
+  inset: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #1E1F2E;
+  border: 2px solid rgba(74, 62, 119, 0.8);
+}
+
+.placeholderEmoji {
+  font-size: 72px;
+}
+
+.grayscale {
+  filter: grayscale(100%) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+}
+
+.achievedBadge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  background: #4ade80;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+  color: white;
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.4);
+}
+
+.titleSection {
+  flex: 1;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: white;
+}
+
+.description {
+  font-size: 16px;
+  color: #b0b0b0;
+  line-height: 1.5;
+  margin-bottom: 15px;
+}
+
+.status {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.completed {
+  background: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+  border: 1px solid #4ade80;
+}
+
+.inProgress {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+  border: 1px solid #fbbf24;
+}
+
+.progressSection {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.progressLabel {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.progressText {
+  font-size: 14px;
+  color: #b0b0b0;
+}
+
+.progressBar {
+  width: 100%;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.5s ease;
+  border-radius: 6px;
+}
+
+.completed .progressFill {
+  background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+}
+
+.progressPercentage {
+  text-align: center;
+  font-size: 14px;
+  color: #b0b0b0;
+  font-weight: 500;
+}
+
+.rewardSection, .conditionSection, .timeSection {
+  margin-bottom: 25px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+}
+
+.sectionTitle::before {
+  content: '';
+  width: 4px;
+  height: 18px;
+  background: #667eea;
+  border-radius: 2px;
+  margin-right: 10px;
+}
+
+.rewardList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rewardItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rewardIcon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(102, 126, 234, 0.2);
+  border-radius: 8px;
+  color: #667eea;
+}
+
+.rewardText {
+  font-size: 14px;
+  color: #fbbf24;
+  font-weight: 500;
+}
+
+.conditionItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.conditionType {
+  font-size: 14px;
+  color: #b0b0b0;
+  text-transform: capitalize;
+}
+
+.conditionTarget {
+  font-size: 14px;
+  color: white;
+  font-weight: 500;
+}
+
+.timeSection {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 20px;
+}
+
+.timeItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.timeLabel {
+  font-size: 14px;
+  color: #b0b0b0;
+}
+
+.timeValue {
+  font-size: 14px;
+  color: white;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .modal {
+    padding: 20px;
+    margin: 10px;
+    max-height: calc(100vh - 40px); /* Better mobile height */
+  }
+  
+  .modalBody {
+    max-height: calc(100vh - 80px); /* Account for modal padding */
+  }
+  
+  .scrollableContent {
+    /* Minimal padding bottom for mobile */
+    padding-bottom: 8px;
+  }
+  
+  .actionButtons {
+    /* Ensure buttons are always visible with safe area */
+    padding: 20px 0 max(20px, env(safe-area-inset-bottom));
+    background: linear-gradient(135deg, #1A1B2C 0%, #2A2B3D 100%);
+    margin: 0 -20px -20px -20px; /* Extend to modal edges */
+    border-radius: 0 0 20px 20px;
+  }
+  
+  .header {
+    flex-direction: column;
+    text-align: center;
+    gap: 15px;
+  }
+  
+  .iconContainer {
+    width: 180px;
+    height: 180px;
+    padding: 12px;
+  }
+  
+  .title {
+    font-size: 20px;
+  }
+  
+  .description {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  
+  .progressSection {
+    padding: 15px;
+  }
+  
+  .timeItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .deleteButton {
+    width: 100%;
+    max-width: 280px;
+    justify-content: center;
+  }
+
+}
+
+@media (max-width: 480px) {
+  .overlay {
+    padding: 10px;
+  }
+  
+  .modal {
+    padding: 15px;
+    max-height: calc(100vh - 20px); /* Even better for small screens */
+  }
+  
+  .modalBody {
+    max-height: calc(100vh - 50px); /* Account for smaller modal padding */
+  }
+  
+  .actionButtons {
+    /* More padding on very small screens */
+    padding: 16px 0 max(16px, env(safe-area-inset-bottom));
+    margin: 0 -15px -15px -15px; /* Match modal padding */
+  }
+  
+  .closeButton {
+    width: 36px;
+    height: 36px;
+    top: 15px;
+    right: 15px;
+  }
+  
+  .iconContainer {
+    width: 140px;
+    height: 140px;
+    padding: 10px;
+  }
+  
+  .placeholderEmoji {
+    font-size: 56px;
+  }
+  
+  .title {
+    font-size: 18px;
+  }
+  
+  .description {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  
+  .deleteButton {
+    padding: 14px 20px;
+    font-size: 14px;
+    min-height: 48px; /* Larger touch target for small screens */
+  }
+
+}
+
+/* Support for devices with notches/safe areas */
+@supports (padding: max(0px)) {
+  @media (max-width: 768px) {
+    .modal {
+      /* Ensure modal doesn't go into safe areas */
+      margin: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)) 10px;
+      max-height: calc(100vh - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom)));
+    }
+    
+    .modalBody {
+      max-height: calc(100vh - max(40px, env(safe-area-inset-top)) - max(40px, env(safe-area-inset-bottom)) - 40px);
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .modal {
+      margin: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)) 10px;
+      max-height: calc(100vh - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom)));
+    }
+    
+    .modalBody {
+      max-height: calc(100vh - max(30px, env(safe-area-inset-top)) - max(30px, env(safe-area-inset-bottom)) - 30px);
+    }
+  }
+}

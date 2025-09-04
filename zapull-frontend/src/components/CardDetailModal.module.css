@@ -1,0 +1,203 @@
+/* 卡片详情弹窗样式 */
+
+.modalOverlay {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.modalContent {
+  animation: slideIn 0.3s ease forwards;
+}
+
+/* 根据稀有度的模态框背景 */
+.modalContentRarity1 {
+  background: linear-gradient(135deg, #2A2B3D 0%, #1A1B2E 100%);
+  border: 1px solid rgba(142, 142, 142, 0.3);
+}
+
+.modalContentRarity2 {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, #1A1B2E 100%);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.modalContentRarity3 {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, #1A1B2E 100%);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.modalContentRarity4 {
+  background: linear-gradient(135deg, rgba(156, 39, 176, 0.1) 0%, #1A1B2E 100%);
+  border: 1px solid rgba(156, 39, 176, 0.3);
+}
+
+.modalContentRarity5 {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, #1A1B2E 100%);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* 稀有度颜色 */
+.rarityCommon {
+  color: #8E8E8E;
+}
+
+.rarityUncommon {
+  color: #4CAF50;
+}
+
+.rarityRare {
+  color: #2196F3;
+}
+
+.rarityEpic {
+  color: #9C27B0;
+}
+
+.rarityLegendary {
+  color: #FF9800;
+}
+
+/* 详情展开动画 */
+.detailsExpand {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.detailsExpand.expanded {
+  max-height: 500px;
+}
+
+/* 卡片图片容器 */
+.cardImageContainer {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cardImageContainer:hover {
+  transform: scale(1.02);
+}
+
+/* 根据稀有度的卡片图片容器样式 */
+.imageContainerRarity1 {
+  border: 2px solid #8E8E8E;
+  box-shadow: 0 4px 12px rgba(142, 142, 142, 0.2);
+}
+
+.imageContainerRarity1:hover {
+  box-shadow: 0 8px 20px rgba(142, 142, 142, 0.3);
+}
+
+.imageContainerRarity2 {
+  border: 2px solid #4CAF50;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+}
+
+.imageContainerRarity2:hover {
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+}
+
+.imageContainerRarity3 {
+  border: 2px solid #2196F3;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+}
+
+.imageContainerRarity3:hover {
+  box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+}
+
+.imageContainerRarity4 {
+  border: 2px solid #9C27B0;
+  box-shadow: 0 4px 12px rgba(156, 39, 176, 0.2);
+}
+
+.imageContainerRarity4:hover {
+  box-shadow: 0 8px 20px rgba(156, 39, 176, 0.3);
+}
+
+.imageContainerRarity5 {
+  border: 2px solid #FF9800;
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2);
+}
+
+.imageContainerRarity5:hover {
+  box-shadow: 0 8px 20px rgba(255, 152, 0, 0.3);
+}
+
+/* 关闭按钮悬停效果 */
+.closeButton {
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeButton:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: rotate(90deg);
+}
+
+/* 模态框标题装饰 */
+.modalTitle {
+  position: relative;
+  display: inline-block;
+}
+
+.modalTitle::before,
+.modalTitle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 30px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 100%);
+}
+
+.modalTitle::before {
+  right: calc(100% + 10px);
+}
+
+/* 根据稀有度的标题栏背景 */
+.headerRarity1 {
+  background: linear-gradient(90deg, #2A2B3D 0%, #1A1B2E 100%);
+  border-bottom: 1px solid rgba(142, 142, 142, 0.3);
+}
+
+.headerRarity2 {
+  background: linear-gradient(90deg, rgba(76, 175, 80, 0.2) 0%, #2A2B3D 100%);
+  border-bottom: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.headerRarity3 {
+  background: linear-gradient(90deg, rgba(33, 150, 243, 0.2) 0%, #2A2B3D 100%);
+  border-bottom: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.headerRarity4 {
+  background: linear-gradient(90deg, rgba(156, 39, 176, 0.2) 0%, #2A2B3D 100%);
+  border-bottom: 1px solid rgba(156, 39, 176, 0.3);
+}
+
+.headerRarity5 {
+  background: linear-gradient(90deg, rgba(255, 152, 0, 0.2) 0%, #2A2B3D 100%);
+  border-bottom: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.modalTitle::after {
+  left: calc(100% + 10px);
+  transform: rotate(180deg);
+}

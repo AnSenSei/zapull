@@ -1,0 +1,451 @@
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import Image from 'next/image'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Card } from '@/lib/packsApi'
+import styles from './CardDetailModal.module.css'
+import FusionBadge from './FusionBadge'
+import { lockBodyScroll, unlockBodyScroll } from '@/lib/scrollLock'
+
+interface PackCardDetailModalProps {
+  isOpen: boolean
+  onClose: () => void
+  card: Card | null
+}
+
+export default function PackCardDetailModal({ isOpen, onClose, card }: PackCardDetailModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null)
+  const [detailsExpanded, setDetailsExpanded] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [imageLoading, setImageLoading] = useState(true)
+
+  // 移除点击外部关闭弹窗的功能，只保留close图标和ESC键关闭
+
+  // ESC键关闭弹窗
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (isFullscreen) {
+          setIsFullscreen(false)
+        } else {
+          onClose()
+        }
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscKey)
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey)
+    }
+  }, [isOpen, onClose, isFullscreen])
+
+  // 弹窗打开时重置数据
+  useEffect(() => {
+    if (isOpen) {
+      setDetailsExpanded(false)
+      setIsFullscreen(false)
+      setImageLoading(true)
+    }
+  }, [isOpen])
+
+  // 锁定背景滚动并阻止背景交互（模态打开或全屏时）
+  useEffect(() => {
+    if (isOpen) {
+      lockBodyScroll()
+      return () => {
+        unlockBodyScroll()
+      }
+    }
+  }, [isOpen])
+
+  if (!isOpen || !card) return null
+
+  // 根据颜色获取对应的显示信息和奖品等级
+  const getColorInfo = (color: string | undefined) => {
+    if (!color) return { 
+      text: 'Default', 
+      hexColor: '#808080', 
+      displayName: 'Default',
+      prizeLevel: 'Standard Prize',
+      prizeIcon: '🏆',
+      prizeRank: 5
+    }
+    
+    const colorMap: { [key: string]: { hexColor: string, displayName: string, prizeLevel: string, prizeIcon: string, prizeRank: number } } = {
+      'red': { 
+        hexColor: '#FF0066', 
+        displayName: 'Red',
+        prizeLevel: 'JACKPOT',
+        prizeIcon: '💎',
+        prizeRank: 1
+      },
+      'orange': { 
+        hexColor: '#FF8800', 
+        displayName: 'Orange',
+        prizeLevel: 'MEGA PRIZE',
+        prizeIcon: '👑',
+        prizeRank: 2
+      },
+      'purple': { 
+        hexColor: '#FF00FF', 
+        displayName: 'Purple',
+        prizeLevel: 'BIG WIN',
+        prizeIcon: '💜',
+        prizeRank: 3
+      },
+      'blue': { 
+        hexColor: '#00CCFF', 
+        displayName: 'Blue',
+        prizeLevel: 'Lucky Prize',
+        prizeIcon: '🎯',
+        prizeRank: 4
+      },
+      'green': { 
+        hexColor: '#00FF88', 
+        displayName: 'Green',
+        prizeLevel: 'Prize',
+        prizeIcon: '🏆',
+        prizeRank: 5
+      },
+      'yellow': { 
+        hexColor: '#FFFF00', 
+        displayName: 'Yellow',
+        prizeLevel: 'Special Prize',
+        prizeIcon: '⭐',
+        prizeRank: 3
+      },
+      'pink': { 
+        hexColor: '#FF66CC', 
+        displayName: 'Pink',
+        prizeLevel: 'Rare Prize',
+        prizeIcon: '🌸',
+        prizeRank: 3
+      },
+      'teal': { 
+        hexColor: '#00FFCC', 
+        displayName: 'Teal',
+        prizeLevel: 'Prize',
+        prizeIcon: '🏆',
+        prizeRank: 4
+      },
+      'cyan': { 
+        hexColor: '#00FFFF', 
+        displayName: 'Cyan',
+        prizeLevel: 'Prize',
+        prizeIcon: '🏆',
+        prizeRank: 4
+      },
+      'brown': { 
+        hexColor: '#CC6633', 
+        displayName: 'Brown',
+        prizeLevel: 'Prize',
+        prizeIcon: '🏆',
+        prizeRank: 5
+      },
+      'grey': { 
+        hexColor: '#CCCCCC', 
+        displayName: 'Grey',
+        prizeLevel: 'Prize',
+        prizeIcon: '🏆',
+        prizeRank: 5
+      },
+      'gray': { 
+        hexColor: '#CCCCCC', 
+        displayName: 'Gray',
+        prizeLevel: 'Prize',
+        prizeIcon: '🏆',
+        prizeRank: 5
+      }
+    }
+    
+    const colorInfo = colorMap[color.toLowerCase()] || { 
+      hexColor: '#808080', 
+      displayName: color.charAt(0).toUpperCase() + color.slice(1),
+      prizeLevel: 'Prize',
+      prizeIcon: '🏆',
+      prizeRank: 5
+    }
+    
+    return colorInfo
+  }
+  
+  const colorInfo = getColorInfo(card.color)
+
+  // 全屏查看组件
+  if (isFullscreen) {
+    return (
+      div
+        className="fixed inset-0 bg-black bg-opacity-95 z-[1001] flex items-center justify-center p-8"
+        role="dialog"
+        aria-modal="true"
+        onClick={() => setIsFullscreen(false)}
+      e
+        button 
+          onClick={() => setIsFullscreen(false)}
+          className="absolute top-8 right-8 text-white hover:text-gray-300 transition-colors z-10"
+        e
+          svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"e
+            path d="M18 6L6 18M6 6l12 12" /e
+          /svge
+        /buttone
+        
+        div className="relative w-full h-full max-w-3xl max-h-[90vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}e
+          Image
+            src={card.image_url || '/placeholder-card.png'}
+            alt={card.name || card.card_name}
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            priority
+          /e
+        /dive
+      /dive
+    )
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-70 z-[1000] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div 
+        ref={modalRef}
+        className="relative bg-gray-900 rounded-2xl max-w-5xl w-full overflow-hidden"
+        style={{
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+          maxHeight: '90vh'
+        }}
+      >
+        {/* Close button */}
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Main Content - Horizontal Layout for Desktop, Vertical for Mobile */}
+        <div className="flex flex-col lg:flex-row overflow-y-auto max-h-[90vh]">
+          {/* Left Side - Large Card Image */}
+          <div className="lg:w-1/2 bg-gray-950 p-4 sm:p-6 lg:p-8 flex flex-col items-center justify-center">
+            {/* Card Name on Mobile */}
+            <h2 className="text-2xl font-bold text-white text-center mb-4 lg:hidden">
+              {card.name || card.card_name}
+            </h2>
+            
+            {/* Card Image Container */}
+            <div className="relative group cursor-pointer" onClick={() => setIsFullscreen(true)}>
+              {/* Prize Badge - Show for top tier prizes */}
+              {colorInfo.prizeRank <= 3 && (
+                <div 
+                  className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10 px-4 py-2 rounded-full font-black text-sm tracking-wider animate-pulse"
+                  style={{
+                    background: `linear-gradient(135deg, ${colorInfo.hexColor}, ${colorInfo.hexColor}CC)`,
+                    boxShadow: `0 4px 20px ${colorInfo.hexColor}80`,
+                    color: colorInfo.prizeRank === 1 ? '#fff' : '#fff'
+                  }}
+                >
+                  {colorInfo.prizeIcon} {colorInfo.prizeLevel} {colorInfo.prizeIcon}
+                </div>
+              )}
+              
+              {/* Loading Skeleton */}
+              {imageLoading && (
+                <div className="absolute inset-0 bg-gray-800 rounded-xl animate-pulse" />
+              )}
+              
+              {/* Main Card Image - Smaller on mobile */}
+              <div 
+                className="relative w-64 h-[360px] sm:w-72 sm:h-[405px] md:w-80 md:h-[450px] lg:w-96 lg:h-[540px] transition-transform duration-300 group-hover:scale-105 p-[2px] rounded-xl"
+                style={{
+                  background: `linear-gradient(135deg, ${colorInfo.hexColor}, ${colorInfo.hexColor}80)`,
+                  boxShadow: `0 0 40px ${colorInfo.hexColor}40, 0 0 80px ${colorInfo.hexColor}20`
+                }}
+              >
+                <div className="relative w-full h-full bg-gray-950 rounded-xl overflow-hidden">
+                  <Image
+                    src={card.image_url || '/placeholder-card.png'}
+                    alt={card.name || card.card_name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 320px, 384px"
+                    priority
+                    onLoadingComplete={() => setImageLoading(false)}
+                  />
+                  
+                  {/* Fusion Badge */}
+                  <FusionBadge 
+                    fusionInfo={card.used_in_fusion} 
+                    className="absolute top-3 right-3"
+                    size="large"
+                    showTooltip={false}
+                  />
+                </div>
+                
+                {/* Fullscreen Icon Overlay */}
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 rounded-xl flex items-center justify-center">
+                  <svg 
+                    width="48" 
+                    height="48" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="white" 
+                    strokeWidth="2"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  >
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                  </svg>
+                </div>
+              </div>
+              
+              {/* Click hint */}
+              <p className="text-gray-500 text-sm mt-3 text-center">Click image to view fullscreen</p>
+            </div>
+          </div>
+
+          {/* Right Side - Card Details */}
+          <div className="lg:w-1/2 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+            {/* Card Name on Desktop */}
+            <h2 className="text-3xl font-bold text-white mb-6 hidden lg:block">
+              {card.name || card.card_name}
+            </h2>
+            
+            {/* Card Stats Grid */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {/* Point Worth - Emphasized for high value cards */}
+              <div 
+                className="rounded-lg p-3 relative overflow-hidden"
+                style={{
+                  background: colorInfo.prizeRank <= 2 
+                    ? `linear-gradient(135deg, ${colorInfo.hexColor}20, ${colorInfo.hexColor}10)` 
+                    : 'rgb(31, 41, 55)'
+                }}
+              >
+                {colorInfo.prizeRank === 1 && (
+                  <div className="absolute top-0 right-0 text-4xl opacity-20">💎</div>
+                )}
+                <div className="flex items-center gap-2 mb-1">
+                  <Image 
+                    src="/users/coin.png" 
+                    alt="Coin" 
+                    width={20} 
+                    height={20} 
+                  />
+                  <span className="text-gray-400 text-sm">Prize Value</span>
+                </div>
+                <p 
+                  className={`text-2xl font-bold ${colorInfo.prizeRank <= 2 ? 'animate-pulse' : ''}`}
+                  style={{
+                    color: colorInfo.prizeRank <= 2 ? colorInfo.hexColor : '#FBBF24'
+                  }}
+                >
+                  {card.point_worth || '0'}
+                </p>
+                {colorInfo.prizeRank === 1 && (
+                  <p className="text-xs mt-1 text-yellow-400">MAX VALUE!</p>
+                )}
+              </div>
+              
+              {/* Drop Rate - Show rarity */}
+              <div className="bg-gray-800 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
+                    <path d="M12 2v20M2 12h20M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20z" />
+                  </svg>
+                  <span className="text-gray-400 text-sm">Rarity</span>
+                </div>
+                <p className="text-2xl font-bold text-blue-400">{(card.probability * 100).toFixed(2)}%</p>
+                {card.probability < 0.01 && (
+                  <p className="text-xs mt-1 text-red-400">Ultra Rare!</p>
+                )}
+                {card.probability < 0.05 && card.probability >= 0.01 && (
+                  <p className="text-xs mt-1 text-orange-400">Very Rare!</p>
+                )}
+              </div>
+            </div>
+            
+            {/* Detailed Info */}
+            <div className="space-y-2">
+              {/* Condition */}
+              <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                <span className="text-gray-400 font-medium">Condition</span>
+                <span className="text-white font-semibold text-lg">{card.condition || 'Mint'}</span>
+              </div>
+              
+              {/* Prize Level */}
+              <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                <span className="text-gray-400 font-medium">Prize Tier</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{colorInfo.prizeIcon}</span>
+                  <div className="flex flex-col items-end">
+                    <span 
+                      className="font-black text-xl tracking-wide"
+                      style={{ 
+                        color: colorInfo.hexColor,
+                        textShadow: `0 0 20px ${colorInfo.hexColor}80`
+                      }}
+                    >
+                      {colorInfo.prizeLevel}
+                    </span>
+                    {colorInfo.prizeRank === 1 && (
+                      <span className="text-xs text-yellow-400 animate-pulse">Highest Value!</span>
+                    )}
+                    {colorInfo.prizeRank === 2 && (
+                      <span className="text-xs text-orange-400">Very Rare!</span>
+                    )}
+                    {colorInfo.prizeRank === 3 && (
+                      <span className="text-xs text-purple-400">Rare Find!</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Collection */}
+              {card.collection && (
+                <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                  <span className="text-gray-400 font-medium">Collection</span>
+                  <span className="text-white font-semibold">{card.collection}</span>
+                </div>
+              )}
+              
+              {/* Fusion Info - Enhanced Display */}
+              {card.used_in_fusion && card.used_in_fusion.length > 0 && (
+                <div className="py-2">
+                  <h3 className="text-gray-400 font-medium mb-2 text-lg">Can be used to create</h3>
+                  <div className="space-y-2 bg-gray-800 rounded-lg p-3">
+                    {card.used_in_fusion.map((fusion, index) => (
+                      <div key={index} className="flex items-center gap-4 p-2 hover:bg-gray-700 rounded transition-colors">
+                        {/* Result card image */}
+                        <div className="relative w-16 h-20 flex-shrink-0">
+                          <Image
+                            src={fusion.result_card_image_url}
+                            alt={fusion.result_card_name}
+                            fill
+                            className="object-cover rounded"
+                          />
+                        </div>
+                        {/* Result card info */}
+                        <div className="flex-1">
+                          <p className="text-white font-medium">{fusion.result_card_name}</p>
+                          <p className="text-gray-400 text-sm">Fusion Result</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

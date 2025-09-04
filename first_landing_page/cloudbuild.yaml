@@ -1,0 +1,58 @@
+steps:
+  # Create Artifact Registry repository if it doesn't exist
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud artifacts repositories create frontend \
+          --repository-format=docker \
+          --location=us \
+          --description="Frontend applications repository" || true
+
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-docker.pkg.dev/seventh-program-433718-h8/frontend/frontend:latest'
+      - '.'
+  
+  # Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-docker.pkg.dev/seventh-program-433718-h8/frontend/frontend:latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'zapull-landing'
+      - '--image'
+      - 'us-docker.pkg.dev/seventh-program-433718-h8/frontend/frontend:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '10'
+      # Environment variables will be set directly in Cloud Run console
+
+# Configure timeout
+timeout: '1200s'
+
+# Images to be pushed to registry
+images:
+  - 'us-docker.pkg.dev/seventh-program-433718-h8/frontend/frontend:latest'
