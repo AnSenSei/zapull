@@ -1,0 +1,398 @@
+#!/usr/bin/env python3
+"""
+Script to send challenger passwords to users and output Excel with user-account mapping.
+
+Usage:
+    MAILGUN_API=your_api_key python send_challenger_passwords.py
+
+Requirements:
+    - scripts/challenger_passwords.csv
+    - scripts/box-opening-chanllange.xlsx (or box-opening-challenge.xlsx)
+    - scripts/email_challenger_password.html
+    - Environment variable MAILGUN_API
+    
+Output:
+    - scripts/challenger_account_assignments.xlsx
+"""
+
+import os
+import sys
+import csv
+import tempfile
+import time
+import re
+from typing import Dict, List, Tuple
+from datetime import datetime
+
+import pandas as pd
+import requests
+
+
+# Configuration
+MAILGUN_DOMAIN = os.getenv("MAILGUN_DOMAIN", "mg.zapull.fun")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "Zapull Support <support@mg.zapull.fun>")
+SUBJECT = os.getenv("SUBJECT", "🎮 Your Zapull Challenge Account Credentials")
+SLEEP_MS = int(os.getenv("SLEEP_MS", "250"))  # Delay between emails
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
+
+# File paths
+SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_PATH = os.path.join(SCRIPTS_DIR, "challenger_passwords.csv")
+EXCEL_PATH_1 = os.path.join(SCRIPTS_DIR, "box-opening-chanllange.xlsx")  # Original typo
+EXCEL_PATH_2 = os.path.join(SCRIPTS_DIR, "box-opening-challenge.xlsx")   # Corrected name
+HTML_PATH = os.path.join(SCRIPTS_DIR, "email_challenger_password.html")
+OUTPUT_EXCEL = os.path.join(SCRIPTS_DIR, "challenger_account_assignments.xlsx")
+
+
+def validate_environment():
+    """Validate environment variables and files."""
+    mailgun_api = os.getenv("MAILGUN_API")
+    if not mailgun_api:
+        print("ERROR: MAILGUN_API environment variable must be set", file=sys.stderr)
+        sys.exit(1)
+    
+    if not os.path.exists(CSV_PATH):
+        print(f"ERROR: Challenger passwords file not found at {CSV_PATH}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Check for Excel file (try both names)
+    excel_path = None
+    if os.path.exists(EXCEL_PATH_1):
+        excel_path = EXCEL_PATH_1
+    elif os.path.exists(EXCEL_PATH_2):
+        excel_path = EXCEL_PATH_2
+    else:
+        print(f"ERROR: Excel file not found at {EXCEL_PATH_1} or {EXCEL_PATH_2}", file=sys.stderr)
+        sys.exit(1)
+    
+    if not os.path.exists(HTML_PATH):
+        print(f"ERROR: HTML template not found at {HTML_PATH}", file=sys.stderr)
+        sys.exit(1)
+    
+    return mailgun_api, excel_path
+
+
+def load_challenger_data() -> List[Dict]:
+    """Load challenger passwords from CSV."""
+    challengers = []
+    with open(CSV_PATH, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            challengers.append({
+                'user_id': row['user_id'].strip(),
+                'email': row['email'].strip(),
+                'password': row['password'].strip()
+            })
+    
+    print(f"Loaded {len(challengers)} challenger accounts from CSV")
+    return challengers
+
+
+def load_existing_assignments() -> Dict[str, str]:
+    """Load existing assignments from previous runs to avoid duplicate emails."""
+    existing_assignments = {}
+    if os.path.exists(OUTPUT_EXCEL):
+        try:
+            df = pd.read_excel(OUTPUT_EXCEL, sheet_name='Account_Assignments')
+            # Create mapping of user email -> challenger account
+            for _, row in df.iterrows():
+                if row['Email Sent'] == 'Yes':
+                    existing_assignments[row['User Email']] = row['Challenger Account']
+            print(f"Found {len(existing_assignments)} users who already received credentials")
+            if existing_assignments:
+                print("Already processed users:")
+                for email, account in list(existing_assignments.items())[:5]:  # Show first 5
+                    print(f"  - {email} → {account}")
+                if len(existing_assignments) > 5:
+                    print(f"  ... and {len(existing_assignments) - 5} more")
+        except Exception as e:
+            print(f"Warning: Could not read existing assignments: {e}")
+    else:
+        print("No existing assignments file found - will process all users")
+    
+    return existing_assignments
+
+
+def load_user_emails_from_excel(excel_path: str) -> List[str]:
+    """Load user emails from Excel file."""
+    try:
+        # Try to read the Excel file with multiple potential sheet names and formats
+        df = pd.read_excel(excel_path, sheet_name=None)  # Load all sheets
+        
+        all_emails = []
+        for sheet_name, sheet_df in df.items():
+            print(f"Processing sheet: {sheet_name}")
+            print(f"Columns in sheet: {sheet_df.columns.tolist()}")
+            
+            # Look for email-like columns
+            email_columns = []
+            for col in sheet_df.columns:
+                if 'email' in str(col).lower() or 'mail' in str(col).lower():
+                    email_columns.append(col)
+            
+            if email_columns:
+                for col in email_columns:
+                    emails_in_col = sheet_df[col].dropna().astype(str).tolist()
+                    # Filter for valid email patterns
+                    valid_emails = [email.strip() for email in emails_in_col 
+                                  if re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email.strip())]
+                    all_emails.extend(valid_emails)
+                    print(f"Found {len(valid_emails)} valid emails in column '{col}'")
+            else:
+                # If no email column is found, look in all text columns for email patterns
+                print(f"No email column found in sheet {sheet_name}, searching all columns...")
+                for col in sheet_df.columns:
+                    try:
+                        col_data = sheet_df[col].dropna().astype(str).tolist()
+                        valid_emails = [item.strip() for item in col_data 
+                                      if re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', str(item).strip())]
+                        if valid_emails:
+                            all_emails.extend(valid_emails)
+                            print(f"Found {len(valid_emails)} valid emails in column '{col}'")
+                    except:
+                        continue
+        
+        # Remove duplicates while preserving order
+        unique_emails = []
+        seen = set()
+        for email in all_emails:
+            if email not in seen:
+                unique_emails.append(email)
+                seen.add(email)
+        
+        print(f"Total unique emails found in Excel: {len(unique_emails)}")
+        return unique_emails
+        
+    except Exception as e:
+        print(f"ERROR: Failed to read Excel file {excel_path}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+
+
+def create_personalized_html(template_content: str, username: str, password: str) -> str:
+    """Create personalized HTML content by replacing placeholders."""
+    return template_content.replace("{{USERNAME}}", username).replace("{{PASSWORD}}", password)
+
+
+def send_email(mailgun_api: str, recipient_email: str, html_content: str) -> bool:
+    """Send email via Mailgun API."""
+    api_base = f"https://api.mailgun.net/v3/{MAILGUN_DOMAIN}/messages"
+    
+    data = {
+        "from": FROM_EMAIL,
+        "to": recipient_email,
+        "subject": SUBJECT,
+        "text": "Please view this email in HTML format to see your credentials.",
+        "html": html_content,
+        "h:Reply-To": "support@zapull.fun",
+        "h:X-Campaign": "challenger-passwords-2025"
+    }
+    
+    try:
+        response = requests.post(
+            api_base,
+            auth=("api", mailgun_api),
+            data=data,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            print(f"✅ Email sent successfully to {recipient_email}")
+            return True
+        else:
+            print(f"❌ Failed to send email to {recipient_email}: HTTP {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error sending email to {recipient_email}: {e}")
+        return False
+
+
+def main():
+    """Main execution function."""
+    print("🚀 Starting challenger password distribution...")
+    
+    # Validate environment
+    mailgun_api, excel_path = validate_environment()
+    
+    # Load data
+    challengers = load_challenger_data()
+    
+    # Check for existing assignments to avoid duplicate emails
+    existing_assignments = load_existing_assignments()
+    
+    # Get user emails from Excel file
+    all_user_emails = load_user_emails_from_excel(excel_path)
+    
+    if not all_user_emails:
+        print("ERROR: No user emails found in Excel file", file=sys.stderr)
+        sys.exit(1)
+    
+    # Filter out users who already received emails
+    new_user_emails = [email for email in all_user_emails if email not in existing_assignments]
+    
+    if not new_user_emails:
+        print("\n✅ All users have already received their challenger passwords!")
+        print(f"Total users: {len(all_user_emails)}")
+        print(f"Already processed: {len(existing_assignments)}")
+        print("No new emails to send.")
+        return
+    
+    print(f"\n📊 Email Status:")
+    print(f"   Total users in Excel: {len(all_user_emails)}")
+    print(f"   Already processed: {len(existing_assignments)}")
+    print(f"   New users to process: {len(new_user_emails)}")
+    print("\n🆕 New users who will receive emails:")
+    for email in new_user_emails:
+        print(f"   - {email}")
+    
+    user_emails = new_user_emails
+    
+    # Load HTML template
+    with open(HTML_PATH, 'r', encoding='utf-8') as f:
+        html_template = f.read()
+    
+    # Assignment tracking
+    assignments = []
+    sent_count = 0
+    failed_count = 0
+    
+    # Determine starting challenger index (next available after existing assignments)
+    start_index = len(existing_assignments)
+    print(f"\n📧 Starting email distribution to {len(user_emails)} new users...")
+    print(f"Available challenger accounts: {len(challengers)}")
+    print(f"Starting from challenger{start_index + 1} (index {start_index})")
+    
+    for i, user_email in enumerate(user_emails):
+        challenger_index = start_index + i
+        if challenger_index >= len(challengers):
+            print(f"⚠️  Warning: More users than available challenger accounts")
+            print(f"⚠️  Need {challenger_index + 1} accounts but only have {len(challengers)}")
+            print(f"⚠️  Skipping remaining users starting from: {user_email}")
+            break
+        
+        challenger = challengers[challenger_index]
+        
+        # Create personalized email (use challenger email format)
+        challenger_email = f"{challenger['user_id']}@zapull.com"
+        personalized_html = create_personalized_html(
+            html_template, 
+            challenger_email, 
+            challenger['password']
+        )
+        
+        # Send email
+        success = send_email(mailgun_api, user_email, personalized_html)
+        
+        # Track assignment
+        assignment = {
+            'User Email': user_email,
+            'Challenger Account': challenger_email,  # Use full email format
+            'Password': challenger['password'],  # Note: You might want to exclude this in production
+            'Email Sent': 'Yes' if success else 'No',
+            'Sent At': datetime.now().isoformat() if success else '',
+            'Assignment Order': i + 1
+        }
+        assignments.append(assignment)
+        
+        if success:
+            sent_count += 1
+        else:
+            failed_count += 1
+        
+        # Progress update
+        print(f"Progress: {i + 1}/{min(len(user_emails), len(challengers))} "
+              f"(✅ {sent_count} sent, ❌ {failed_count} failed)")
+        
+        # Rate limiting
+        if i < min(len(user_emails), len(challengers)) - 1:  # Don't sleep after last email
+            sleep_seconds = SLEEP_MS / 1000.0
+            print(f"⏳ Sleeping for {sleep_seconds} seconds...")
+            time.sleep(sleep_seconds)
+    
+    # Create Excel output
+    print(f"\n📊 Creating Excel output at {OUTPUT_EXCEL}...")
+    
+    # Load existing assignments if they exist
+    all_assignments = []
+    if os.path.exists(OUTPUT_EXCEL):
+        try:
+            existing_df = pd.read_excel(OUTPUT_EXCEL, sheet_name='Account_Assignments')
+            all_assignments = existing_df.to_dict('records')
+            print(f"Loaded {len(all_assignments)} existing assignments")
+        except Exception as e:
+            print(f"Warning: Could not load existing assignments: {e}")
+    
+    # Add new assignments
+    all_assignments.extend(assignments)
+    df_assignments = pd.DataFrame(all_assignments)
+    
+    # Create summary sheet data
+    summary_data = {
+        'Metric': [
+            'Total Users',
+            'Total Challenger Accounts',
+            'Emails Sent Successfully',
+            'Emails Failed',
+            'Unassigned Accounts',
+            'Generated At'
+        ],
+        'Value': [
+            len(user_emails),
+            len(challengers),
+            sent_count,
+            failed_count,
+            max(0, len(challengers) - len(user_emails)),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ]
+    }
+    df_summary = pd.DataFrame(summary_data)
+    
+    # Write to Excel with multiple sheets
+    with pd.ExcelWriter(OUTPUT_EXCEL, engine='openpyxl') as writer:
+        df_assignments.to_excel(writer, sheet_name='Account_Assignments', index=False)
+        df_summary.to_excel(writer, sheet_name='Summary', index=False)
+        
+        # Format the Excel file
+        workbook = writer.book
+        
+        # Format assignments sheet
+        assignments_sheet = writer.sheets['Account_Assignments']
+        for column in assignments_sheet.columns:
+            max_length = 0
+            column_name = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            assignments_sheet.column_dimensions[column_name].width = adjusted_width
+        
+        # Format summary sheet
+        summary_sheet = writer.sheets['Summary']
+        summary_sheet.column_dimensions['A'].width = 25
+        summary_sheet.column_dimensions['B'].width = 30
+    
+    print(f"✅ Excel file created successfully: {OUTPUT_EXCEL}")
+    
+    # Final summary
+    print(f"\n🎯 Final Summary:")
+    print(f"   Total users processed: {len(assignments)}")
+    print(f"   Emails sent successfully: {sent_count}")
+    print(f"   Emails failed: {failed_count}")
+    print(f"   Success rate: {sent_count / len(assignments) * 100:.1f}%" if assignments else "0%")
+    print(f"   Output file: {OUTPUT_EXCEL}")
+    
+    if failed_count > 0:
+        print(f"\n⚠️  {failed_count} emails failed to send. Check the Excel file for details.")
+        sys.exit(1)
+    else:
+        print(f"\n🎉 All emails sent successfully!")
+
+
+if __name__ == "__main__":
+    main()

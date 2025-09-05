@@ -16,8 +16,8 @@ export default function EventBanner({ isMobile }: EventBannerProps) {
   const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false)
   
   // Use actual files under public/event
-  const pcFileNames = ['event1.webp', 'challenge.webp', 'event3.webp']
-  const mobileFileNames = ['event1.webp', 'challenge_mobile.webp', 'event3.webp']
+  const pcFileNames = ['event1.webp', 'challenge.webp', 'box_chanllange.webp', 'event3.webp']
+  const mobileFileNames = ['event1.webp', 'challenge_mobile.webp', 'box_chanllange.webp', 'event3.webp']
   const pcBannerImages = pcFileNames.map(n => `/event/pc_event/${n}`)
   const mobileBannerImages = mobileFileNames.map(n => `/event/mobile/${n}`)
   const currentBannerImages = isMobile ? mobileBannerImages : pcBannerImages
@@ -76,7 +76,7 @@ export default function EventBanner({ isMobile }: EventBannerProps) {
             </div>
             {/* Foreground crisp image without cropping; first slide shows CTA buttons */}
             <div
-              className={`absolute inset-0 p-0 ${i === 0 || i === 1 || i === 2 ? 'cursor-pointer' : ''}`}
+              className={`absolute inset-0 p-0 ${i === 0 || i === 1 || i === 2 || i === 3 ? 'cursor-pointer' : ''}`}
               onClick={() => { 
                 if (i === 0) { 
                   openRegisterModal(); 
@@ -84,6 +84,9 @@ export default function EventBanner({ isMobile }: EventBannerProps) {
                   // Challenge banner: Redirect to Discord
                   window.open('https://discord.gg/WjjHxsjCrm', '_blank');
                 } else if (i === 2) { 
+                  // Box challenge banner: Redirect to Discord
+                  window.open('https://discord.gg/WjjHxsjCrm', '_blank');
+                } else if (i === 3) { 
                   router.push('/events'); 
                 }
               }}
