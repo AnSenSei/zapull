@@ -45,7 +45,7 @@ const getEventConfig = (eventId: string) => {
         description: 'Get your free daily Pokemon cards!',
         image_url: '/events/freedaily-box.jpg',
         price: 0,
-        max_win: '100', // Updated to match API response
+        max_win: '500', // Updated to match API response
         win_rate: '100',
         min_win: '2', // Updated to match API response
         has_fusion_recipes: false

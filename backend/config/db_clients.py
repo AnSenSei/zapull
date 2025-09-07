@@ -79,6 +79,8 @@ def get_typesense_collection_name(collection_id: str = None):
         return settings.typesense_collection_one_piece
     elif collection_id == "magic":
         return settings.typesense_collection_magic
+    elif collection_id == "users":
+        return settings.typesense_collection_users
     else:
         # Default to pokemon if collection_id is not specified or not recognized
         return settings.typesense_collection_pokemon

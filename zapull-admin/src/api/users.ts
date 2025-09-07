@@ -41,7 +41,7 @@ export interface UserListResponse {
 export interface GetUserListParams {
   page: number
   per_page: number
-  sort_by?: 'pointsBalance' | 'totalCashRecharged' | 'totalPointsSpent' | 'createdAt' | 'displayName' | 'level'
+  sort_by?: 'pointsBalance' | 'totalCashRecharged' | 'totalPointsSpent' | 'total_point_refered'
   sort_order?: 'asc' | 'desc'
   search_query?: string
 }

@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     typesense_collection_one_piece: str = "one_piece_test"
     typesense_collection_magic: str = "magic_test"
     typesense_collection_listings: str = "listings_test"
+    typesense_collection_users: str = "users"
 
     # Logging settings
     log_level: str = "INFO"

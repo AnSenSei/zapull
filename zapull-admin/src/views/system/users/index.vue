@@ -15,9 +15,7 @@
               <el-option label="积分余额" value="pointsBalance" />
               <el-option label="充值总额" value="totalCashRecharged" />
               <el-option label="消费总额" value="totalPointsSpent" />
-              <el-option label="创建时间" value="createdAt" />
-              <el-option label="显示名称" value="displayName" />
-              <el-option label="等级" value="level" />
+              <el-option label="推荐积分" value="total_point_refered" />
             </el-select>
           </el-form-item>
           <el-form-item label="排序方式">
@@ -59,6 +57,11 @@
         </el-table-column>
         <el-table-column prop="totalPointsSpent" label="消费总额" width="120" />
         <el-table-column prop="totalFusion" label="合成次数" width="100" />
+        <el-table-column prop="total_point_refered" label="推荐积分" width="100">
+          <template #default="{ row }">
+            <el-tag type="warning">{{ row.total_point_refered || 0 }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="totalAchievements" label="成就数量" width="100" />
         <el-table-column prop="createdAt" label="创建时间" width="180">
           <template #default="{ row }">
@@ -213,7 +216,7 @@ const awardFormData = reactive<AwardAchievementParams & { selectedUser?: User }>
 const searchForm = reactive<GetUserListParams>({
   page: 1,
   per_page: 10,
-  sort_by: 'createdAt',
+  sort_by: 'pointsBalance',
   sort_order: 'desc',
   search_query: ''
 })
@@ -251,7 +254,7 @@ const handleSearch = () => {
 
 // 重置搜索
 const handleReset = () => {
-  searchForm.sort_by = 'createdAt'
+  searchForm.sort_by = 'pointsBalance'
   searchForm.sort_order = 'desc'
   searchForm.search_query = ''
   currentPage.value = 1
