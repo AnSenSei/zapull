@@ -68,10 +68,11 @@
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" size="small" @click="handleViewDetail(row)">查看详情</el-button>
             <el-button type="success" size="small" @click="handleAwardAchievement(row)">颁发成就</el-button>
+            <el-button type="warning" size="small" @click="handleAddPoints(row)">添加积分</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -180,13 +181,68 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 添加积分对话框 -->
+    <el-dialog
+      v-model="addPointsDialogVisible"
+      title="添加积分"
+      width="500px"
+      :destroy-on-close="true"
+    >
+      <div v-if="addPointsFormData.selectedUser" v-loading="addPointsLoading">
+        <el-form :model="addPointsFormData" label-width="80px" ref="addPointsForm">
+          <el-form-item label="用户">
+            <el-input v-model="addPointsFormData.selectedUser.displayName" disabled />
+          </el-form-item>
+          <el-form-item
+            label="积分数量"
+            required
+            prop="points"
+            :rules="[
+              { required: true, message: '请输入积分数量', trigger: 'blur' },
+              { type: 'number', min: 1, message: '积分数量必须大于0', trigger: 'blur' }
+            ]"
+          >
+            <el-input-number
+              v-model="addPointsFormData.points"
+              :min="1"
+              :max="999999"
+              placeholder="请输入要添加的积分数量"
+              style="width: 100%"
+            />
+          </el-form-item>
+          <el-form-item label="添加原因">
+            <el-input
+              v-model="addPointsFormData.reason"
+              type="textarea"
+              :rows="3"
+              placeholder="可选的添加积分原因说明"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="cancelAddPoints">取消</el-button>
+          <el-button
+            type="primary"
+            @click="confirmAddPoints"
+            :loading="addPointsLoading"
+            :disabled="!addPointsFormData.points || addPointsFormData.points <= 0"
+          >
+            添加积分
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getUserList, getUserDetail, awardAchievementToUser, getUserAchievements, type User, type GetUserListParams, type AwardAchievementParams, type UserAchievement } from '@/api/users'
+import { getUserList, getUserDetail, awardAchievementToUser, getUserAchievements, addPointsToUser, type User, type GetUserListParams, type AwardAchievementParams, type UserAchievement, type AddPointsRequest, type AddPointsResponse } from '@/api/users'
 import { getAchievementList, type Achievement } from '@/api/achievements'
 
 // 响应式数据
@@ -209,6 +265,15 @@ const achievementsLoading = ref(false)
 const awardFormData = reactive<AwardAchievementParams & { selectedUser?: User }>({
   achievement_id: '',
   notes: '',
+  selectedUser: null
+})
+
+// 添加积分相关数据
+const addPointsDialogVisible = ref(false)
+const addPointsLoading = ref(false)
+const addPointsFormData = reactive<AddPointsRequest & { selectedUser?: User }>({
+  points: 0,
+  reason: '',
   selectedUser: null
 })
 
@@ -363,7 +428,57 @@ const cancelAwardAchievement = () => {
   awardFormData.selectedUser = null
 }
 
+// 添加积分
+const handleAddPoints = async (user: User) => {
+  addPointsFormData.selectedUser = user
+  addPointsFormData.points = 0
+  addPointsFormData.reason = ''
+  addPointsDialogVisible.value = true
+}
 
+// 确认添加积分
+const confirmAddPoints = async () => {
+  if (!addPointsFormData.selectedUser || !addPointsFormData.points || addPointsFormData.points <= 0) {
+    ElMessage.error('请输入有效的积分数量')
+    return
+  }
+  
+  addPointsLoading.value = true
+  try {
+    const params: AddPointsRequest = {
+      points: addPointsFormData.points,
+      reason: addPointsFormData.reason || undefined
+    }
+    
+    const response = await addPointsToUser(addPointsFormData.selectedUser.id, params)
+    
+    if (response.success) {
+      ElMessage.success(`成功为用户添加了 ${response.points_added} 积分，新余额: ${response.new_balance}`)
+      addPointsDialogVisible.value = false
+      // 刷新用户列表以更新积分余额
+      await fetchUserList()
+    } else {
+      ElMessage.error('添加积分失败')
+    }
+  } catch (error: any) {
+    console.error('添加积分失败:', error)
+    if (error.response?.data?.detail) {
+      ElMessage.error(error.response.data.detail)
+    } else {
+      ElMessage.error('添加积分失败')
+    }
+  } finally {
+    addPointsLoading.value = false
+  }
+}
+
+// 取消添加积分
+const cancelAddPoints = () => {
+  addPointsDialogVisible.value = false
+  addPointsFormData.points = 0
+  addPointsFormData.reason = ''
+  addPointsFormData.selectedUser = null
+}
 
 // 组件挂载时获取数据
 onMounted(() => {

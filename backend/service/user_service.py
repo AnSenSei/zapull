@@ -296,3 +296,67 @@ async def check_user_admin(user_id: str, db: AsyncClient) -> bool:
             status_code=500,
             detail=f"Failed to check admin status: {str(e)}"
         )
+
+async def add_points_to_user(
+    user_id: str,
+    points: int,
+    db: AsyncClient,
+    reason: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Add points to a user's balance using atomic increment.
+
+    Args:
+        user_id: The ID of the user to add points to
+        points: Number of points to add (must be positive)
+        db: Firestore async client instance
+        reason: Optional reason for adding points
+
+    Returns:
+        Dict containing operation details
+
+    Raises:
+        HTTPException: If user not found or operation fails
+    """
+    try:
+        logger.info(f"Adding {points} points to user {user_id}. Reason: {reason or 'No reason provided'}")
+        
+        # Get user reference
+        user_ref = db.collection("users").document(user_id)
+        
+        # First verify the user exists
+        user_doc = await user_ref.get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
+        
+        # Get current balance for response (before increment)
+        user_data = user_doc.to_dict()
+        previous_balance = user_data.get('pointsBalance', 0)
+        
+        # Use atomic increment to add points
+        await user_ref.update({
+            'pointsBalance': firestore.Increment(points)
+        })
+        
+        # Calculate new balance
+        new_balance = previous_balance + points
+        
+        logger.info(f"Successfully added {points} points to user {user_id} using increment. Previous: {previous_balance}, New: {new_balance}")
+        
+        return {
+            'success': True,
+            'message': f"Successfully added {points} points to user",
+            'user_id': user_id,
+            'points_added': points,
+            'previous_balance': previous_balance,
+            'new_balance': new_balance
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding points to user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to add points: {str(e)}"
+        )

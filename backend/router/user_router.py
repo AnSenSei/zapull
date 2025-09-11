@@ -3,9 +3,9 @@ from google.cloud.firestore_v1 import AsyncClient
 from typing import Optional
 
 from config import get_logger, get_firestore_client
-from service.user_service import get_all_users, get_user_by_id, check_user_admin
+from service.user_service import get_all_users, get_user_by_id, check_user_admin, add_points_to_user
 from service.achievement_service import award_achievement_to_user, get_user_achievements
-from models.schemas import UserListResponse, User
+from models.schemas import UserListResponse, User, AddPointsRequest, AddPointsResponse
 from models.achievement_schemas import AwardAchievementRequest, AwardAchievementResponse
 
 logger = get_logger(__name__)
@@ -232,6 +232,60 @@ async def get_user_achievements_endpoint(
         raise
     except Exception as e:
         logger.error(f"Unexpected error getting achievements for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+@router.post("/{user_id}/add-points", response_model=AddPointsResponse)
+async def add_points_to_user_endpoint(
+    user_id: str = Path(..., description="The ID of the user to add points to"),
+    request: AddPointsRequest = ...,
+    db: AsyncClient = Depends(get_firestore_client)
+) -> AddPointsResponse:
+    """
+    Add points to a user's balance.
+    
+    This endpoint allows administrators to add points to a user's account.
+    The operation is performed using a Firestore transaction to ensure consistency.
+    
+    Args:
+        user_id: The ID of the user to add points to
+        request: Request containing the number of points and optional reason
+        db: Firestore database client (injected)
+    
+    Returns:
+        AddPointsResponse: Response containing operation details and new balance
+    
+    Raises:
+        HTTPException: 400 for invalid input, 404 if user not found, 500 for server errors
+    """
+    try:
+        logger.info(f"Adding {request.points} points to user {user_id}")
+        
+        # Call the service function
+        result = await add_points_to_user(
+            user_id=user_id,
+            points=request.points,
+            db=db,
+            reason=request.reason
+        )
+        
+        logger.info(f"Successfully added {request.points} points to user {user_id}. New balance: {result['new_balance']}")
+        
+        return AddPointsResponse(
+            success=result['success'],
+            message=result['message'],
+            user_id=result['user_id'],
+            points_added=result['points_added'],
+            new_balance=result['new_balance'],
+            previous_balance=result['previous_balance']
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error adding points to user {user_id}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"An unexpected error occurred: {str(e)}"

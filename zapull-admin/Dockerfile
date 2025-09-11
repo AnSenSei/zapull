@@ -3,14 +3,17 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first
 COPY package*.json ./
 
 # Install dependencies
 RUN npm ci
 
-# Copy source code
+# Copy source code (excluding node_modules via .dockerignore)
 COPY . .
+
+# Fix npm executable permissions after copying
+RUN chmod -R +x node_modules/.bin
 
 # Build the application (skip TypeScript checking for now)
 RUN npm run build:skip:prod
