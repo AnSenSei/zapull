@@ -237,6 +237,20 @@ class UserListResponse(BaseModel):
     pagination: PaginationInfo
     filters: UserFilters
 
+class AddPointsRequest(BaseModel):
+    """Request model for adding points to a user"""
+    points: int = Field(..., gt=0, description="Number of points to add (must be positive)")
+    reason: Optional[str] = Field(None, description="Optional reason for adding points")
+
+class AddPointsResponse(BaseModel):
+    """Response model for adding points to a user"""
+    success: bool
+    message: str
+    user_id: str
+    points_added: int
+    new_balance: int
+    previous_balance: int
+
 class Base64UploadCardRequest(BaseModel):
     """Request model for uploading a card with base64 encoded image"""
     image_base64: str = Field(..., description="Base64 encoded image data (with or without data URL prefix)")

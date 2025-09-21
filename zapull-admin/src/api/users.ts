@@ -117,3 +117,27 @@ export function getUserAchievements(userId: string, page: number = 1, size: numb
     params: { page, size }
   })
 }
+
+// 添加积分相关接口
+export interface AddPointsRequest {
+  points: number
+  reason?: string
+}
+
+export interface AddPointsResponse {
+  success: boolean
+  message: string
+  user_id: string
+  points_added: number
+  new_balance: number
+  previous_balance: number
+}
+
+// 为用户添加积分
+export function addPointsToUser(userId: string, params: AddPointsRequest) {
+  return request<AddPointsResponse>({
+    url: `/users/${userId}/add-points`,
+    method: 'post',
+    data: params
+  })
+}
