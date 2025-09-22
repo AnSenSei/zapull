@@ -148,6 +148,7 @@ async def withdraw_pending_ship_request(request_id: str, user_id: str, db_client
             request_date=original_withdraw_request_data.get('request_date'),
             status='canceled',
             user_id=original_withdraw_request_data.get('user_id', user_id),
+            user_email=original_withdraw_request_data.get('user_email', ''),
             card_count=original_withdraw_request_data.get('card_count', len(cards)),
             cards=cards,
             shipping_address=original_withdraw_request_data.get('shipping_address'),
@@ -324,6 +325,7 @@ async def withdraw_ship_multiple_cards(user_id: str, cards_to_withdraw: List[Dic
                 'request_date': now,
                 'status': 'pending',  # Initial status is pending
                 'user_id': user_id,
+                'user_email': user_data.get('email', ''),  # Add user's email to the withdrawal request
                 'created_at': now,
                 'card_count': len(cards_data),  # Add count of cards in this request
                 'shipping_address': shipping_address,  # Add shipping address
@@ -401,6 +403,7 @@ async def withdraw_ship_multiple_cards(user_id: str, cards_to_withdraw: List[Dic
             card_shipping_data = {
                 'request_id': new_request_ref.id,
                 'user_id': user_id,
+                'user_email': user_data.get('email', ''),  # Add user's email to the card shipping record
                 'request_date': request_data.get('request_date'),
                 'status': request_data.get('status', 'pending'),
                 'shipping_address': shipping_address,
@@ -537,6 +540,7 @@ async def get_all_withdraw_requests(user_id: str, db_client: AsyncClient, page: 
                 request_date=request_data.get('request_date'),
                 status=request_data.get('status', 'pending'),
                 user_id=request_data.get('user_id', user_id),
+                user_email=request_data.get('user_email', ''),
                 card_count=request_data.get('card_count'),
                 shipping_address=request_data.get('shipping_address'),
                 shippo_address_id=request_data.get('shippo_address_id'),
@@ -678,6 +682,7 @@ async def get_withdraw_request_by_id(request_id: str, user_id: str, db_client: A
             request_date=withdraw_request_data.get('request_date'),
             status=withdraw_request_data.get('status', 'pending'),
             user_id=withdraw_request_data.get('user_id', user_id),
+            user_email=withdraw_request_data.get('user_email', ''),
             card_count=withdraw_request_data.get('card_count', len(cards)),
             cards=cards,
             shipping_address=withdraw_request_data.get('shipping_address'),

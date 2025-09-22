@@ -142,6 +142,7 @@ class WithdrawRequest(BaseModel):
     request_date: datetime = Field(..., description="The timestamp when the withdraw request was made")
     status: str = Field(..., description="The status of the withdraw request (e.g., 'pending', 'label_created', 'shipped', 'delivered')")
     user_id: str = Field(..., description="The ID of the user who made the withdraw request")
+    user_email: Optional[str] = Field(None, description="The email address of the user who made the withdraw request")
     card_count: Optional[int] = Field(None, description="The number of cards in this withdraw request")
     shipping_address: Optional[Dict[str, Any]] = Field(None, description="The shipping address for this withdraw request")
 
@@ -173,6 +174,7 @@ class WithdrawRequestDetail(BaseModel):
     request_date: datetime = Field(..., description="The timestamp when the withdraw request was made")
     status: str = Field(..., description="The status of the withdraw request (e.g., 'pending', 'label_created', 'shipped', 'delivered')")
     user_id: str = Field(..., description="The ID of the user who made the withdraw request")
+    user_email: Optional[str] = Field(None, description="The email address of the user who made the withdraw request")
     card_count: Optional[int] = Field(None, description="The number of cards in this withdraw request")
     cards: List[UserCard] = Field(..., description="The cards in this withdraw request")
     shipping_address: Optional[Dict[str, Any]] = Field(None, description="The shipping address for this withdraw request")

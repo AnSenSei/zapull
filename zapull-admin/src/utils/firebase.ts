@@ -13,6 +13,23 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 }
 
+// 验证Firebase配置
+const validateFirebaseConfig = () => {
+  const requiredFields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId']
+  const missingFields = requiredFields.filter(field => !firebaseConfig[field as keyof typeof firebaseConfig])
+  
+  if (missingFields.length > 0) {
+    console.error('Missing Firebase configuration fields:', missingFields)
+    console.error('Current config:', firebaseConfig)
+    throw new Error(`Missing Firebase configuration: ${missingFields.join(', ')}`)
+  }
+  
+  console.log('Firebase configuration loaded successfully')
+}
+
+// 验证配置
+validateFirebaseConfig()
+
 // 初始化Firebase
 const app = initializeApp(firebaseConfig)
 

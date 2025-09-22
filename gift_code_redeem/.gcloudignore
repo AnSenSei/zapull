@@ -1,0 +1,19 @@
+# Git files
+.git
+.gitignore
+
+# Environment files (secrets handled via substitutions)
+.env*
+
+# Documentation
+README.md
+
+# Logs
+*.log
+
+# Development files
+.dockerignore
+deploy.sh
+
+# Dependencies (will be installed in Docker)
+node_modules/

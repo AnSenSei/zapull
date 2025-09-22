@@ -48,7 +48,7 @@
         @sort-change="handleSortChange"
       >
         <el-table-column prop="id" label="物流ID" width="120" sortable="custom" />
-        <el-table-column prop="user_id" label="用户ID" width="120" sortable="custom" />
+        <el-table-column prop="user_email" label="用户邮箱" width="160" sortable="custom" />
         <el-table-column prop="tracking_number" label="追踪号" width="150" sortable="custom">
           <template #default="{ row }">
             <el-tooltip effect="dark" :content="`点击复制: ${row.tracking_number}`" placement="top">
@@ -109,7 +109,7 @@
         <!-- 基本信息 -->
         <el-descriptions title="基本信息" :column="2" border>
           <el-descriptions-item label="物流ID">{{ currentViewShipment?.id }}</el-descriptions-item>
-          <el-descriptions-item label="用户ID">{{ currentViewShipment?.user_id }}</el-descriptions-item>
+          <el-descriptions-item label="用户邮箱">{{ currentViewShipment?.user_email }}</el-descriptions-item>
           <el-descriptions-item label="追踪号">
             <div class="tracking-info">
               <span>{{ currentViewShipment?.tracking_number }}</span>

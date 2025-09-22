@@ -1,0 +1,46 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build', 
+      '-t', 'gcr.io/zapull-production/discord-gift-bot', 
+      '.'
+    ]
+
+  # Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'push', 
+      'gcr.io/zapull-production/discord-gift-bot'
+    ]
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: [
+      'run', 'deploy', 'discord-gift-bot',
+      '--image=gcr.io/zapull-production/discord-gift-bot',
+      '--platform=managed',
+      '--region=us-central1',
+      '--allow-unauthenticated',
+      '--memory=512Mi',
+      '--cpu=1',
+      '--no-cpu-throttling',
+      '--min-instances=1',
+      '--max-instances=1',
+      '--timeout=3600',
+      '--port=8080',
+      '--set-env-vars=DISCORD_TOKEN=${_DISCORD_TOKEN}',
+      '--set-env-vars=CLIENT_ID=${_CLIENT_ID}',
+      '--set-env-vars=GUILD_ID=${_GUILD_ID}',
+      '--set-env-vars=FIREBASE_PROJECT_ID=zapull-production',
+      '--service-account=backend@zapull-production.iam.gserviceaccount.com'
+    ]
+
+# Define substitution variables (will be passed via gcloud builds submit)
+substitutions:
+  _DISCORD_TOKEN: ''
+  _CLIENT_ID: ''
+  _GUILD_ID: ''
+
+options:
+  logging: CLOUD_LOGGING_ONLY

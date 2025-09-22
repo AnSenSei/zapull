@@ -33,6 +33,7 @@ export interface ShippingInfo {
   request_date: string
   status: string
   user_id: string
+  user_email: string
   card_count: number
   shipping_address: ShippingAddress
   shippo_address_id: string
