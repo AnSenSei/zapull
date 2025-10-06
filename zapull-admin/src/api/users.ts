@@ -141,3 +141,53 @@ export function addPointsToUser(userId: string, params: AddPointsRequest) {
     data: params
   })
 }
+
+// 用户卡片相关接口
+export interface UserCard {
+  id: string
+  card_name: string
+  collection_name: string
+  quantity: number
+  rarity: number
+  point_worth: number
+  date_got?: string
+  image_url?: string
+}
+
+export interface GetUserCardsParams {
+  page?: number
+  per_page?: number
+  collection_id?: string
+  search_query?: string
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
+}
+
+export interface UserCardsResponse {
+  cards: UserCard[]
+  pagination: {
+    current_page: number
+    per_page: number
+    total_items: number
+    total_pages: number
+    has_next: boolean
+    has_prev: boolean
+  }
+  collections: {
+    [key: string]: {
+      count: number
+      total_value: number
+    }
+  }
+  available_collections: string[]
+  user_id: string
+}
+
+// 获取用户卡片列表
+export function getUserCards(userId: string, params?: GetUserCardsParams) {
+  return request<UserCardsResponse>({
+    url: `/users/${userId}/cards`,
+    method: 'get',
+    params
+  })
+}

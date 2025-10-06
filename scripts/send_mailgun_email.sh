@@ -6,7 +6,8 @@ set -euo pipefail
 #   MAILGUN_API=... ./scripts/send_mailgun_email.sh \
 #     --to "recipient@example.com" \
 #     [--from "Zapull Announcements \u003cannounce@mg.zapull.fun\u003e"] \
-#     [--subject "Zapull Beta launching on 08/18 at 4 PM ET"]
+#     [--subject "Zapull Beta launching on 08/18 at 4 PM ET"] \
+#     [--html-path "scripts/email_coin_drop_discord.html"]
 #
 #   # Broadcast mode (pull all recipients from Firestore collection 'emails')
 #   MAILGUN_API=... ./scripts/send_mailgun_email.sh \
@@ -48,8 +49,10 @@ while [[ $# -gt 0 ]]; do
       BATCH_SIZE="$2"; shift 2 ;;
     --sleep-ms)
       SLEEP_MS="$2"; shift 2 ;;
+    --html-path)
+      HTML_PATH="$2"; shift 2 ;;
     *)
-      echo "Unknown argument: $1" 1\u003e\u00262; exit 1 ;;
+      echo "Unknown argument: $1" 1>&2; exit 1 ;;
   esac
 done
 

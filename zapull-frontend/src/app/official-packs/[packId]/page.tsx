@@ -720,7 +720,7 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
         // Use setTimeout to ensure the card is rendered before getting position (reduced delay)
         setTimeout(() => {
           // Get the revealed cards container position for better particle positioning
-          const revealedContainer = document.querySelector('.relative.w-32.h-48')
+          const revealedContainer = document.querySelector('.cardPile')
           let centerX = window.innerWidth / 2
           let centerY = window.innerHeight / 2
           
@@ -1267,41 +1267,98 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
         />
       ))}
 
-      {/* Card Animation Modal */}
+      {/* Card Animation Modal - Mobile Centered */}
       {showCardAnimation && drawResults && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-          <style jsx>{`
-            @keyframes rarityGlowRed {
-              0% { box-shadow: 0 0 20px rgba(255, 71, 87, 0.6), 0 0 40px rgba(255, 71, 87, 0.3); }
-              100% { box-shadow: 0 0 30px rgba(255, 71, 87, 0.9), 0 0 60px rgba(255, 71, 87, 0.5); }
-            }
-            @keyframes rarityGlowOrange {
-              0% { box-shadow: 0 0 20px rgba(255, 152, 0, 0.6), 0 0 40px rgba(255, 152, 0, 0.3); }
-              100% { box-shadow: 0 0 30px rgba(255, 152, 0, 0.9), 0 0 60px rgba(255, 152, 0, 0.5); }
-            }
-            @keyframes rarityGlowPurple {
-              0% { box-shadow: 0 0 20px rgba(156, 39, 176, 0.6), 0 0 40px rgba(156, 39, 176, 0.3); }
-              100% { box-shadow: 0 0 30px rgba(156, 39, 176, 0.9), 0 0 60px rgba(156, 39, 176, 0.5); }
-            }
-          `}</style>
-          <div className="flex flex-col items-center justify-center w-full h-full p-4">
+        <div className={styles.drawModal} role="dialog" aria-modal="true">
+          <div className={styles.drawModalContent}>
+            <style jsx>{`
+              @keyframes rarityGlowRed {
+                0% { box-shadow: 0 0 20px rgba(255, 71, 87, 0.6), 0 0 40px rgba(255, 71, 87, 0.3); }
+                100% { box-shadow: 0 0 30px rgba(255, 71, 87, 0.9), 0 0 60px rgba(255, 71, 87, 0.5); }
+              }
+              @keyframes rarityGlowOrange {
+                0% { box-shadow: 0 0 20px rgba(255, 152, 0, 0.6), 0 0 40px rgba(255, 152, 0, 0.3); }
+                100% { box-shadow: 0 0 30px rgba(255, 152, 0, 0.9), 0 0 60px rgba(255, 152, 0, 0.5); }
+              }
+              @keyframes rarityGlowPurple {
+                0% { box-shadow: 0 0 20px rgba(156, 39, 176, 0.6), 0 0 40px rgba(156, 39, 176, 0.3); }
+                100% { box-shadow: 0 0 30px rgba(156, 39, 176, 0.9), 0 0 60px rgba(156, 39, 176, 0.5); }
+              }
+              
+              /* Mobile-specific card piles positioning */
+              @media (max-width: 768px) {
+                .cardPilesContainer {
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  gap: 1.5rem;
+                  width: 100%;
+                  padding: 0 1rem;
+                }
+                
+                .cardPile {
+                  width: 120px;
+                  height: 180px;
+                  position: relative;
+                }
+                
+                .cardPile .card {
+                  width: 100%;
+                  height: 100%;
+                }
+                
+                .arrowSeparator {
+                  font-size: 1.5rem;
+                  color: white;
+                  flex-shrink: 0;
+                }
+              }
+              
+              @media (min-width: 769px) {
+                .cardPilesContainer {
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  gap: 2rem;
+                  width: 100%;
+                }
+                
+                .cardPile {
+                  width: 192px;
+                  height: 288px;
+                  position: relative;
+                }
+                
+                .cardPile .card {
+                  width: 100%;
+                  height: 100%;
+                }
+                
+                .arrowSeparator {
+                  font-size: 2rem;
+                  color: white;
+                  flex-shrink: 0;
+                }
+              }
+            `}</style>
+            
             {/* Pack Name */}
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">{pack?.name || 'Official Pack'}</h2>
+            <div className="text-center mb-4 md:mb-8 px-4">
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-2">{pack?.name || 'Official Pack'}</h2>
               {demoMode && (
-                <div className="inline-block bg-green-600/20 border border-green-500/30 rounded-lg px-4 py-2">
+                <div className="inline-block bg-green-600/20 border border-green-500/30 rounded-lg px-3 py-1 md:px-4 md:py-2">
                   <div className="flex items-center gap-2">
                     <span>🎮</span>
-                    <span className="text-green-400 text-sm font-medium">Demo Mode - Free Preview</span>
+                    <span className="text-green-400 text-xs md:text-sm font-medium">Demo Mode - Free Preview</span>
                   </div>
                 </div>
               )}
             </div>
             
-            {/* Two Card Piles Layout */}
-            <div className="flex justify-center items-center gap-8 mb-8">
+            {/* Two Card Piles Layout - Mobile Responsive */}
+            <div className="cardPilesContainer mb-4 md:mb-8">
               {/* Unrevealed Cards Stack */}
-              <div className="relative w-32 h-48 sm:w-48 sm:h-72">
+              <div className="cardPile">
                 {drawResults.cards.length - revealedCards.length > 0 ? (
                   <>
                     {drawResults.cards.slice(revealedCards.length).map((card, index) => {
@@ -1309,7 +1366,7 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
                       return (
                         <div
                           key={`unrevealed-${card.card_id}-${index}`}
-                          className="absolute inset-0 w-full h-full rounded-lg border-2 border-white/20 shadow-lg cursor-pointer overflow-hidden"
+                          className="card absolute inset-0 rounded-lg border-2 border-white/20 shadow-lg cursor-pointer overflow-hidden"
                           style={{
                             transform: `translate(${index * 1}px, ${index * -1}px) rotate(${(index % 2 - 0.5) * 1}deg)`,
                             zIndex: 100 - index,
@@ -1331,16 +1388,16 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
                   </>
                 ) : (
                   <div className="w-full h-full border-2 border-dashed border-gray-500 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400 text-sm">Empty</span>
+                    <span className="text-gray-400 text-xs md:text-sm">Empty</span>
                   </div>
                 )}
               </div>
 
               {/* Arrow */}
-              <div className="text-white text-2xl">→</div>
+              <div className="arrowSeparator">→</div>
 
               {/* Revealed Cards Pile */}
-              <div className="relative w-32 h-48 sm:w-48 sm:h-72">
+              <div className="cardPile">
                 {revealedCards.length > 0 ? (
                   <>
                     {/* Only show the most recent card - completely overlaid */}
@@ -1387,7 +1444,7 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
                         <div 
                           key={`revealed-${latestCard.id}`}
                           ref={el => { cardRefs.current[revealedCards.length - 1] = el }}
-                          className="absolute inset-0 w-full h-full rounded-lg border-2 shadow-xl overflow-hidden"
+                          className="card absolute inset-0 rounded-lg border-2 shadow-xl overflow-hidden"
                           data-card-color={cardColor}
                           data-card-revealed="true"
                           style={borderStyle}
@@ -1427,31 +1484,31 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
                   </>
                 ) : (
                   <div className="w-full h-full border-2 border-dashed border-gray-500 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400 text-sm">Revealed</span>
+                    <span className="text-gray-400 text-xs md:text-sm">Revealed</span>
                   </div>
                 )}
               </div>
             </div>
               
             {/* Click instruction */}
-            <div className="text-center mt-4">
+            <div className="text-center px-4">
               {revealedCards.length < drawResults.cards.length && (
-                <p className="text-white text-lg animate-pulse">
+                <p className="text-white text-base md:text-lg animate-pulse">
                   Click the card to reveal! ({revealedCards.length + 1}/{drawResults.cards.length})
                 </p>
               )}
               {revealedCards.length >= drawResults.cards.length && (
-                <p className="text-green-400 text-lg font-bold">
+                <p className="text-green-400 text-base md:text-lg font-bold">
                   All cards revealed! ✨
                 </p>
               )}
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4 mb-8">
+            <div className="flex justify-center gap-4 mt-4 md:mt-8 mb-4 md:mb-8 px-4">
               <button
                 onClick={skipAnimation}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg font-medium transition-colors text-sm md:text-base"
               >
                 Skip Animation
               </button>

@@ -68,9 +68,10 @@
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="380" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" size="small" @click="handleViewDetail(row)">查看详情</el-button>
+            <el-button type="info" size="small" @click="handleViewCards(row)">查看卡片</el-button>
             <el-button type="success" size="small" @click="handleAwardAchievement(row)">颁发成就</el-button>
             <el-button type="warning" size="small" @click="handleAddPoints(row)">添加积分</el-button>
           </template>
@@ -236,13 +237,119 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 查看卡片对话框 -->
+    <el-dialog
+      v-model="cardsDialogVisible"
+      :title="`用户卡片 - ${cardsFormData.selectedUser?.displayName}`"
+      width="80%"
+      :destroy-on-close="true"
+    >
+      <div v-if="cardsFormData.selectedUser" v-loading="cardsLoading">
+        <!-- 搜索和筛选 -->
+        <div class="cards-filter">
+          <el-form inline>
+            <el-form-item label="集合">
+              <el-select v-model="cardsFormData.collection_id" placeholder="全部集合" clearable @change="handleCardsFilter">
+                <el-option 
+                  v-for="collection in availableCollections" 
+                  :key="collection" 
+                  :label="collection" 
+                  :value="collection" 
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="搜索">
+              <el-input 
+                v-model="cardsFormData.search_query" 
+                placeholder="输入卡片名称" 
+                clearable 
+                @clear="handleCardsFilter"
+                @keyup.enter="handleCardsFilter"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleCardsFilter">搜索</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="cards-stats" v-if="cardsData.collections">
+          <el-row :gutter="16">
+            <el-col :span="6" v-for="(stats, collection) in cardsData.collections" :key="collection">
+              <el-statistic 
+                :title="collection" 
+                :value="stats.count" 
+                suffix="张"
+              >
+                <template #suffix>
+                  <span>张 (价值: {{ stats.total_value }})</span>
+                </template>
+              </el-statistic>
+            </el-col>
+          </el-row>
+        </div>
+
+        <!-- 卡片表格 -->
+        <el-table :data="cardsData.cards" style="width: 100%; margin-top: 20px;">
+          <el-table-column label="卡片图片" width="120">
+            <template #default="{ row }">
+              <el-image 
+                v-if="row.image_url"
+                :src="row.image_url" 
+                style="width: 80px; height: 80px" 
+                fit="cover"
+                :preview-src-list="[row.image_url]"
+              />
+              <span v-else>无图片</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="card_name" label="卡片名称" width="200" show-overflow-tooltip />
+          <el-table-column prop="collection_name" label="集合" width="120" />
+          <el-table-column prop="quantity" label="数量" width="80">
+            <template #default="{ row }">
+              <el-tag type="info">{{ row.quantity }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="rarity" label="稀有度" width="80">
+            <template #default="{ row }">
+              <el-tag :type="getRarityType(row.rarity)">{{ row.rarity }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="point_worth" label="点数价值" width="100">
+            <template #default="{ row }">
+              <el-tag type="success">{{ row.point_worth }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="date_got" label="获得时间" width="180">
+            <template #default="{ row }">
+              {{ row.date_got ? formatDate(row.date_got) : '-' }}
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- 分页 -->
+        <div class="cards-pagination">
+          <el-pagination
+            v-model:current-page="cardsCurrentPage"
+            v-model:page-size="cardsPageSize"
+            :total="cardsData.pagination?.total_items || 0"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next"
+            @size-change="handleCardsSizeChange"
+            @current-change="handleCardsCurrentChange"
+          />
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getUserList, getUserDetail, awardAchievementToUser, getUserAchievements, addPointsToUser, type User, type GetUserListParams, type AwardAchievementParams, type UserAchievement, type AddPointsRequest, type AddPointsResponse } from '@/api/users'
+import { getUserList, getUserDetail, awardAchievementToUser, getUserAchievements, addPointsToUser, getUserCards, type User, type GetUserListParams, type AwardAchievementParams, type UserAchievement, type AddPointsRequest, type AddPointsResponse, type GetUserCardsParams, type UserCardsResponse } from '@/api/users'
 import { getAchievementList, type Achievement } from '@/api/achievements'
 
 // 响应式数据
@@ -274,6 +381,23 @@ const addPointsLoading = ref(false)
 const addPointsFormData = reactive<AddPointsRequest & { selectedUser?: User }>({
   points: 0,
   reason: '',
+  selectedUser: null
+})
+
+// 查看卡片相关数据
+const cardsDialogVisible = ref(false)
+const cardsLoading = ref(false)
+const cardsCurrentPage = ref(1)
+const cardsPageSize = ref(20)
+const availableCollections = ref<string[]>([])
+const cardsData = reactive<Partial<UserCardsResponse>>({ cards: [], pagination: undefined, collections: {} })
+const cardsFormData = reactive<GetUserCardsParams & { selectedUser?: User | null }>({
+  page: 1,
+  per_page: 20,
+  sort_by: 'date_got',
+  sort_order: 'desc',
+  search_query: '',
+  collection_id: undefined,
   selectedUser: null
 })
 
@@ -480,6 +604,80 @@ const cancelAddPoints = () => {
   addPointsFormData.selectedUser = null
 }
 
+// 查看用户卡片
+const handleViewCards = async (user: User) => {
+  cardsFormData.selectedUser = user
+  cardsFormData.page = 1
+  cardsFormData.per_page = 20
+  cardsFormData.search_query = ''
+  cardsFormData.collection_id = undefined
+  cardsCurrentPage.value = 1
+  cardsPageSize.value = 20
+  cardsDialogVisible.value = true
+  
+  await fetchUserCards()
+}
+
+// 获取用户卡片列表
+const fetchUserCards = async () => {
+  if (!cardsFormData.selectedUser) return
+  
+  cardsLoading.value = true
+  try {
+    const params: GetUserCardsParams = {
+      page: cardsCurrentPage.value,
+      per_page: cardsPageSize.value,
+      sort_by: cardsFormData.sort_by,
+      sort_order: cardsFormData.sort_order,
+      search_query: cardsFormData.search_query || undefined,
+      collection_id: cardsFormData.collection_id || undefined
+    }
+    
+    const response = await getUserCards(cardsFormData.selectedUser.id, params)
+    
+    // 更新数据
+    cardsData.cards = response.cards
+    cardsData.pagination = response.pagination
+    cardsData.collections = response.collections
+    availableCollections.value = response.available_collections || []
+    
+  } catch (error: any) {
+    console.error('获取用户卡片失败:', error)
+    ElMessage.error('获取用户卡片失败')
+  } finally {
+    cardsLoading.value = false
+  }
+}
+
+// 卡片筛选
+const handleCardsFilter = () => {
+  cardsCurrentPage.value = 1
+  fetchUserCards()
+}
+
+// 卡片分页大小变化
+const handleCardsSizeChange = (size: number) => {
+  cardsPageSize.value = size
+  cardsCurrentPage.value = 1
+  cardsFormData.per_page = size
+  fetchUserCards()
+}
+
+// 卡片当前页变化
+const handleCardsCurrentChange = (page: number) => {
+  cardsCurrentPage.value = page
+  cardsFormData.page = page
+  fetchUserCards()
+}
+
+// 获取稀有度类型
+const getRarityType = (rarity: number) => {
+  if (rarity >= 5) return 'danger'  // 红色 - 传说
+  if (rarity >= 4) return 'warning' // 橙色 - 稀有
+  if (rarity >= 3) return 'success' // 绿色 - 不常见
+  return 'info'  // 蓝色 - 普通
+}
+
 // 组件挂载时获取数据
 onMounted(() => {
   fetchUserList()
@@ -518,6 +716,26 @@ onMounted(() => {
       margin-bottom: 10px;
       color: #303133;
     }
+  }
+
+  .cards-filter {
+    margin-bottom: 20px;
+    padding: 20px;
+    background-color: #f5f7fa;
+    border-radius: 4px;
+  }
+
+  .cards-stats {
+    margin-bottom: 20px;
+    padding: 20px;
+    background-color: #fafbfc;
+    border-radius: 4px;
+  }
+
+  .cards-pagination {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
   }
 }
 </style>

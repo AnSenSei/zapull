@@ -73,9 +73,9 @@ const initialFilters = useRef(getInitialFilters());
   const [stickyHeight, setStickyHeight] = useState(0)
   
   // Event banner carousel state
-  // Use actual files under public/event
-  const pcFileNames = ['event1.webp', 'offcial_event.webp', 'box_chanllange.webp', 'event3.webp']
-  const mobileFileNames = ['event1.webp', 'offcial_event.webp', 'box_chanllange.webp', 'event3.webp']
+  // Use actual files under public/event - Updated to add Whatnot banner as 3rd slide and move events to 4th
+  const pcFileNames = ['event1.webp', 'offcial_event.webp', 'whatnot.webp', 'event3.webp']
+  const mobileFileNames = ['event1.webp', 'offcial_event.webp', 'whatnot.webp', 'event3.webp']
   const pcBannerImages = pcFileNames.map(n => `/event/pc_event/${n}`)
   const mobileBannerImages = mobileFileNames.map(n => `/event/mobile/${n}`)
   const currentBannerImages = isMobile ? mobileBannerImages : pcBannerImages
@@ -635,9 +635,10 @@ const onPageShow = (e: PageTransitionEvent | any) => {
                     // Official packs banner: Navigate to official packs page
                     router.push('/official-packs');
                   } else if (i === 2) { 
-                    // Box challenge banner: Redirect to Discord
-                    window.open('https://discord.gg/WjjHxsjCrm', '_blank');
+                    // Whatnot banner: Redirect to Whatnot profile
+                    window.open('https://www.whatnot.com/user/zapull', '_blank');
                   } else if (i === 3) { 
+                    // Events banner moved to slide 4
                     router.push('/events'); 
                   }
                 }}

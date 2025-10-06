@@ -35,11 +35,11 @@ async def get_weekly_spending_rank(db_client: AsyncClient, week_id: Optional[str
         HTTPException: If there's an error getting the weekly spending rank
     """
     try:
-        # If week_id is not provided, calculate the current week's ID using US Central timezone
+        # If week_id is not provided, calculate the current week's ID using Eastern timezone
         if not week_id:
-            # Use US Central timezone to match the rest of the system
-            central_tz = ZoneInfo("America/Chicago")
-            today = datetime.now(central_tz)
+            # Use Eastern timezone to match the frontend EDT display
+            eastern_tz = ZoneInfo("America/New_York")
+            today = datetime.now(eastern_tz)
             start_of_week = today - timedelta(days=today.weekday())
             week_id = start_of_week.strftime("%Y-%m-%d")
 

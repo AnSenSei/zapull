@@ -16,8 +16,9 @@ export default function EventBanner({ isMobile }: EventBannerProps) {
   const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false)
   
   // Use actual files under public/event
-  const pcFileNames = ['event1.webp', 'challenge.webp', 'box_chanllange.webp', 'event3.webp']
-  const mobileFileNames = ['event1.webp', 'challenge_mobile.webp', 'box_chanllange.webp', 'event3.webp']
+  // Updated: move existing event3.webp to position 4 and add whatnot.webp as position 3 for both desktop and mobile
+  const pcFileNames = ['event1.webp', 'box_chanllange.webp', 'whatnot.webp', 'event3.webp']
+  const mobileFileNames = ['event1.webp', 'box_chanllange.webp', 'whatnot.webp', 'event3.webp']
   const pcBannerImages = pcFileNames.map(n => `/event/pc_event/${n}`)
   const mobileBannerImages = mobileFileNames.map(n => `/event/mobile/${n}`)
   const currentBannerImages = isMobile ? mobileBannerImages : pcBannerImages
@@ -84,9 +85,10 @@ export default function EventBanner({ isMobile }: EventBannerProps) {
                   // Challenge banner: Redirect to Discord
                   window.open('https://discord.gg/WjjHxsjCrm', '_blank');
                 } else if (i === 2) { 
-                  // Box challenge banner: Redirect to Discord
-                  window.open('https://discord.gg/WjjHxsjCrm', '_blank');
-                } else if (i === 3) { 
+                  // Whatnot banner: Redirect to Whatnot profile
+                  window.open('https://www.whatnot.com/user/zapull', '_blank');
+                } else if (i === 3) {
+                  // Events banner moved to slide 4
                   router.push('/events'); 
                 }
               }}

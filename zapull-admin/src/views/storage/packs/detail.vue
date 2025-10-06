@@ -315,7 +315,7 @@
       </div>
       <el-form :model="cardForm" :rules="cardRules" ref="cardFormRef" label-width="120px">
         <el-form-item label="概率" prop="probability">
-          <el-input-number v-model="cardForm.probability" :min="0" :max="100" :precision="2" :step="0.1" />
+          <el-input-number v-model="cardForm.probability" :min="0" :max="100" :precision="4" :step="0.01" />
         </el-form-item>
         <el-form-item label="颜色" prop="color">
               <el-select v-model="cardForm.color" placeholder="请选择颜色">
@@ -356,7 +356,7 @@
       </div>
       <el-form :model="editCardForm" :rules="editCardRules" ref="editCardFormRef" label-width="120px">
         <el-form-item label="概率" prop="probability">
-          <el-input-number v-model="editCardForm.probability" :min="0" :max="100" :precision="2" :step="0.1" />
+          <el-input-number v-model="editCardForm.probability" :min="0" :max="100" :precision="4" :step="0.01" />
         </el-form-item>
         <el-form-item label="颜色" prop="color">
           <el-select v-model="editCardForm.color" placeholder="请选择颜色">

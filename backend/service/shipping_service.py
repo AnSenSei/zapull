@@ -292,7 +292,8 @@ async def get_all_withdraw_requests_with_cursor(
                 user_id=request_data.get('user_id'),
                 user_email=request_data.get('user_email', ''),
                 card_count=request_data.get('card_count'),
-                shipping_address=request_data.get('shipping_address')
+                shipping_address=request_data.get('shipping_address'),
+                tracking_number=request_data.get('tracking_number')
             )
             all_withdraw_requests.append(withdraw_request)
 

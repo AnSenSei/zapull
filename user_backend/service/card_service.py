@@ -777,8 +777,10 @@ async def draw_multiple_cards_from_pack(collection_id: str, pack_id: str, user_i
             
             if not is_challenger:
                 try:
-                    # Get the current week's start date (Monday)
-                    today = datetime.now()
+                    # Get the current week's start date (Monday) using Eastern timezone
+                    from zoneinfo import ZoneInfo
+                    eastern_tz = ZoneInfo("America/New_York")
+                    today = datetime.now(eastern_tz)
                     start_of_week = today - timedelta(days=today.weekday())
                     week_id = start_of_week.strftime("%Y-%m-%d")
 
@@ -1223,7 +1225,9 @@ async def draw_multiple_cards_from_pack_optimized(
                     logger.error(f"Error parsing challenger user_id {user_id}: {e}, will update weekly_spent")
             
             try:
-                today = datetime.now()
+                from zoneinfo import ZoneInfo
+                eastern_tz = ZoneInfo("America/New_York")
+                today = datetime.now(eastern_tz)
                 start_of_week = today - timedelta(days=today.weekday())
                 week_id = start_of_week.strftime("%Y-%m-%d")
                 
@@ -1648,11 +1652,11 @@ async def draw_daily_free_box(user_id: str, db_client: AsyncClient) -> dict:
     pack_id = "8e03ce64-8111-45f6-aed4-d516c1b00755"
     collection_id = "pokemon"
     
-    # Check if the user has already claimed the daily free box today (using US Central time)
-    us_central = ZoneInfo("America/Chicago")
-    today_central_dt = datetime.now(us_central)
-    today_central = today_central_dt.strftime('%Y%m%d')
-    claim_doc_id = f"{user_id}_{today_central}"
+    # Check if the user has already claimed the daily free box today (using Eastern time)
+    eastern_tz = ZoneInfo("America/New_York")
+    today_eastern_dt = datetime.now(eastern_tz)
+    today_eastern = today_eastern_dt.strftime('%Y%m%d')
+    claim_doc_id = f"{user_id}_{today_eastern}"
     claim_ref = db_client.collection("dailyDrawClaims").document(claim_doc_id)
     
     claim_doc = await claim_ref.get()
@@ -1709,8 +1713,8 @@ async def draw_daily_free_box(user_id: str, db_client: AsyncClient) -> dict:
         logger.warning(f"Card {drawn_card_id} has no point_worth value, no points added")
     
     # Create the claim document in Firestore with 2-day expiration
-    # Calculate expiration time (2 days from now in US Central timezone)
-    expiration_time = today_central_dt + timedelta(days=2)
+    # Calculate expiration time (2 days from now in Eastern timezone)
+    expiration_time = today_eastern_dt + timedelta(days=2)
     
     await claim_ref.set({
         "userId": user_id,

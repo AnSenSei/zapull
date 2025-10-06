@@ -237,6 +237,72 @@ async def get_user_achievements_endpoint(
             detail=f"An unexpected error occurred: {str(e)}"
         )
 
+@router.get("/{user_id}/cards")
+async def get_user_cards_endpoint(
+    user_id: str = Path(..., description="The ID of the user to get cards for"),
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    collection_id: Optional[str] = Query(None, description="Filter by collection ID (subcollection name)"),
+    search_query: Optional[str] = Query(None, description="Search cards by name"),
+    sort_by: str = Query("date_got", description="Field to sort by"),
+    sort_order: str = Query("desc", description="Sort order (asc or desc)"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> dict:
+    """
+    Get all cards for a specific user with pagination and filtering.
+    
+    This endpoint allows administrators to view a user's card collection with:
+    - Pagination support
+    - Collection filtering
+    - Search by card name
+    - Sorting options
+    
+    Args:
+        user_id: The ID of the user to get cards for
+        page: Page number (starts from 1)
+        per_page: Number of cards per page (max 100)
+        collection_id: Optional filter by collection/subcollection name
+        search_query: Optional search term to filter cards by name
+        sort_by: Field to sort by (date_got, card_name, point_worth, rarity)
+        sort_order: Sort order (asc or desc)
+        db: Firestore database client (injected)
+    
+    Returns:
+        Dictionary containing cards, pagination info, and total counts
+        
+    Raises:
+        HTTPException: 404 if user not found, 500 for server errors
+    """
+    try:
+        logger.info(f"Getting cards for user {user_id} - page: {page}, per_page: {per_page}")
+        
+        # Import here to avoid circular imports
+        from service.user_service import get_user_cards
+        
+        # Call the service function
+        result = await get_user_cards(
+            user_id=user_id,
+            db=db,
+            page=page,
+            per_page=per_page,
+            collection_id=collection_id,
+            search_query=search_query,
+            sort_by=sort_by,
+            sort_order=sort_order
+        )
+        
+        logger.info(f"Successfully retrieved {len(result.get('cards', []))} cards for user {user_id}")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error getting cards for user {user_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
 @router.post("/{user_id}/add-points", response_model=AddPointsResponse)
 async def add_points_to_user_endpoint(
     user_id: str = Path(..., description="The ID of the user to add points to"),
