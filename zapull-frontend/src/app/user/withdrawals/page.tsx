@@ -8,13 +8,16 @@ import { useAuthStore } from '@/store/authStore'
 import { isAuthenticated } from '@/lib/authUtils'
 import UserNavigation from '@/components/UserNavigation'
 import { userApi, WithdrawRequest, WithdrawRequestsResponse } from '@/lib/userApi'
+import { paymentApi, ShopOrder } from '@/lib/paymentApi'
 import CreateWithdrawModal from '@/components/CreateWithdrawModal'
 import WithdrawDetailsModal from '@/components/WithdrawDetailsModal'
 
 export default function WithdrawalsPage() {
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState<'cards' | 'shop'>('cards')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawRequest[]>([])
+  const [shopOrders, setShopOrders] = useState<ShopOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -77,9 +80,35 @@ export default function WithdrawalsPage() {
     }
   }
 
+  // 获取商店订单数据
+  const fetchShopOrders = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const response = await paymentApi.getShopOrders(
+        currentPage,
+        10,
+        'created_at',
+        'desc'
+      )
+      setShopOrders(response.shop_orders)
+      setTotalPages(response.pagination.total_pages)
+      setTotalItems(response.pagination.total_items)
+    } catch (err) {
+      console.error('获取商店订单失败:', err)
+      setError('Failed to load shop orders')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    fetchWithdrawRequests()
-  }, [currentPage])
+    if (activeTab === 'cards') {
+      fetchWithdrawRequests()
+    } else if (activeTab === 'shop') {
+      fetchShopOrders()
+    }
+  }, [currentPage, activeTab])
 
   // 处理查看详情
   const handleViewDetails = (requestId: string) => {
@@ -140,32 +169,57 @@ export default function WithdrawalsPage() {
 
       {/* 提现管理区域 */}
       <div className="bg-[#2A2B3D] rounded-lg p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-white">Withdrawals</h2>
-          <Link 
-            href="/user/address"
-            className="px-4 py-2 bg-[#8B5CF6] text-white rounded-lg hover:bg-[#7C3AED] transition-colors inline-block"
+        <h2 className="text-xl font-semibold text-white mb-6">Shipping</h2>
+        
+        {/* Tabs */}
+        <div className="flex space-x-4 mb-6 border-b border-[#3F3F5F]">
+          <button
+            onClick={() => setActiveTab('cards')}
+            className={`pb-3 px-2 font-medium transition-colors relative ${
+              activeTab === 'cards'
+                ? 'text-[#8B5CF6]'
+                : 'text-gray-400 hover:text-white'
+            }`}
           >
-            Manage addresses
-          </Link>
+            Cards
+            {activeTab === 'cards' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#8B5CF6]"></div>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('shop')}
+            className={`pb-3 px-2 font-medium transition-colors relative ${
+              activeTab === 'shop'
+                ? 'text-[#8B5CF6]'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            Shop
+            {activeTab === 'shop' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#8B5CF6]"></div>
+            )}
+          </button>
         </div>
 
-        {/* 加载状态 */}
-        {loading && (
-          <div className="flex justify-center items-center py-8">
-            <div className="text-white">Loading...</div>
-          </div>
-        )}
+        {/* Cards Tab Content */}
+        {activeTab === 'cards' && (
+          <>
+            {/* 加载状态 */}
+            {loading && (
+              <div className="flex justify-center items-center py-8">
+                <div className="text-white">Loading...</div>
+              </div>
+            )}
 
-        {/* 错误状态 */}
-        {error && (
-          <div className="bg-red-500/20 text-red-500 p-4 rounded-lg mb-4">
-            {error}
-          </div>
-        )}
+            {/* 错误状态 */}
+            {error && (
+              <div className="bg-red-500/20 text-red-500 p-4 rounded-lg mb-4">
+                {error}
+              </div>
+            )}
 
-        {/* 提现历史表格 */}
-        {!loading && !error && (
+            {/* 提现历史表格 */}
+            {!loading && !error && (
           <div className="overflow-x-auto">
             <table className="w-full text-white">
               <thead>
@@ -181,7 +235,7 @@ export default function WithdrawalsPage() {
                 {withdrawalHistory.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-gray-400">
-                      No withdrawal requests found
+                      No card shipping requests found
                     </td>
                   </tr>
                 ) : (
@@ -258,68 +312,225 @@ export default function WithdrawalsPage() {
               </tbody>
             </table>
           </div>
-        )}
+            )}
 
-        {/* 分页 */}
-        {!loading && !error && totalPages > 1 && (
-          <div className="flex justify-between items-center mt-6">
-            <div className="text-gray-400 text-sm">
-              共{totalItems}条记录 {currentPage}/{totalPages}页
-            </div>
-            <div className="flex space-x-2">
-              <button 
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`w-8 h-8 flex items-center justify-center rounded-md text-white ${
-                  currentPage === 1 
-                    ? 'bg-gray-600 cursor-not-allowed' 
-                    : 'bg-[#3F3F5F] hover:bg-[#4F4F6F]'
-                }`}
-              >
-                &lt;
-              </button>
-              
-              {/* 页码按钮 */}
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
+            {/* 分页 */}
+            {!loading && !error && totalPages > 1 && (
+              <div className="flex justify-between items-center mt-6">
+                <div className="text-gray-400 text-sm">
+                  共{totalItems}条记录 {currentPage}/{totalPages}页
+                </div>
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
                     className={`w-8 h-8 flex items-center justify-center rounded-md text-white ${
-                      currentPage === pageNum 
-                        ? 'bg-[#8B5CF6]' 
+                      currentPage === 1 
+                        ? 'bg-gray-600 cursor-not-allowed' 
                         : 'bg-[#3F3F5F] hover:bg-[#4F4F6F]'
                     }`}
                   >
-                    {pageNum}
+                    &lt;
                   </button>
-                );
-              })}
-              
-              <button 
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`w-8 h-8 flex items-center justify-center rounded-md text-white ${
-                  currentPage === totalPages 
-                    ? 'bg-gray-600 cursor-not-allowed' 
-                    : 'bg-[#3F3F5F] hover:bg-[#4F4F6F]'
-                }`}
-              >
-                &gt;
-              </button>
-            </div>
-          </div>
+                  
+                  {/* 页码按钮 */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-md text-white ${
+                          currentPage === pageNum 
+                            ? 'bg-[#8B5CF6]' 
+                            : 'bg-[#3F3F5F] hover:bg-[#4F4F6F]'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  
+                  <button 
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`w-8 h-8 flex items-center justify-center rounded-md text-white ${
+                      currentPage === totalPages 
+                        ? 'bg-gray-600 cursor-not-allowed' 
+                        : 'bg-[#3F3F5F] hover:bg-[#4F4F6F]'
+                    }`}
+                  >
+                    &gt;
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Shop Tab Content */}
+        {activeTab === 'shop' && (
+          <>
+            {/* 加载状态 */}
+            {loading && (
+              <div className="flex justify-center items-center py-8">
+                <div className="text-white">Loading...</div>
+              </div>
+            )}
+
+            {/* 错误状态 */}
+            {error && (
+              <div className="bg-red-500/20 text-red-500 p-4 rounded-lg mb-4">
+                {error}
+              </div>
+            )}
+
+            {/* 商店订单表格 */}
+            {!loading && !error && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-white">
+                  <thead>
+                    <tr className="text-gray-400 border-b border-[#3F3F5F]">
+                      <th className="py-3 text-left">Status</th>
+                      <th className="py-3 text-left">Order time</th>
+                      <th className="py-3 text-left">Items</th>
+                      <th className="py-3 text-left">Amount</th>
+                      <th className="py-3 text-right">Operation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shopOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-gray-400">
+                          No shop orders found
+                        </td>
+                      </tr>
+                    ) : (
+                      shopOrders.map((order) => {
+                        const formatDate = (dateString: string) => {
+                          const date = new Date(dateString)
+                          return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+                        }
+
+                        const getStatusColor = (status: string) => {
+                          switch (status.toLowerCase()) {
+                            case 'pending':
+                              return 'bg-yellow-500/20 text-yellow-500'
+                            case 'processing':
+                              return 'bg-blue-500/20 text-blue-500'
+                            case 'shipped':
+                              return 'bg-green-500/20 text-green-500'
+                            case 'delivered':
+                              return 'bg-green-600/20 text-green-600'
+                            case 'cancelled':
+                              return 'bg-red-500/20 text-red-500'
+                            default:
+                              return 'bg-gray-500/20 text-gray-500'
+                          }
+                        }
+
+                        return (
+                          <tr key={order.id} className="border-b border-[#3F3F5F]">
+                            <td className="py-4">
+                              <span className={`inline-block px-2 py-1 rounded-full text-xs ${getStatusColor(order.status)}`}>
+                                {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="py-4">{formatDate(order.created_at)}</td>
+                            <td className="py-4">{order.card_count} items</td>
+                            <td className="py-4">${order.amount_paid.toFixed(2)}</td>
+                            <td className="py-4 text-right">
+                              <button 
+                                onClick={() => {
+                                  // TODO: Open order details modal
+                                  alert('Order details coming soon!')
+                                }}
+                                className="px-3 py-1 bg-[#3F3F5F] text-white rounded-lg hover:bg-[#4F4F6F] transition-colors text-sm"
+                              >
+                                View Details
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* 分页 */}
+            {!loading && !error && totalPages > 1 && (
+              <div className="flex justify-between items-center mt-6">
+                <div className="text-gray-400 text-sm">
+                  共{totalItems}条记录 {currentPage}/{totalPages}页
+                </div>
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`w-8 h-8 flex items-center justify-center rounded-md text-white ${
+                      currentPage === 1 
+                        ? 'bg-gray-600 cursor-not-allowed' 
+                        : 'bg-[#3F3F5F] hover:bg-[#4F4F6F]'
+                    }`}
+                  >
+                    &lt;
+                  </button>
+                  
+                  {/* 页码按钮 */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-md text-white ${
+                          currentPage === pageNum 
+                            ? 'bg-[#8B5CF6]' 
+                            : 'bg-[#3F3F5F] hover:bg-[#4F4F6F]'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  
+                  <button 
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className={`w-8 h-8 flex items-center justify-center rounded-md text-white ${
+                      currentPage === totalPages 
+                        ? 'bg-gray-600 cursor-not-allowed' 
+                        : 'bg-[#3F3F5F] hover:bg-[#4F4F6F]'
+                    }`}
+                  >
+                    &gt;
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

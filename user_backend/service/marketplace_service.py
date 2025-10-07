@@ -4026,6 +4026,14 @@ async def get_official_listings(
             # R2 URLs are public, no need to sign them
             # image_url is already public and accessible
                     
+            # Calculate priceCash if not present
+            price_points = card.get("pricePoints", 0)
+            price_cash = card.get("priceCash")
+            
+            # If priceCash is not set, calculate it from pricePoints
+            if price_cash is None:
+                price_cash = round(price_points / 100.0, 2) if price_points > 0 else 0.0
+            
             # Create the response object
             card_info = OfficialListingCardInfo(
                 id=card.get("id", ""),
@@ -4035,7 +4043,8 @@ async def get_official_listings(
                 condition=card.get("condition", "near_mint"),
                 date_got_in_stock=card.get("date_got_in_stock", ""),
                 image_url=card.get("image_url", ""),
-                pricePoints=card.get("pricePoints", 0),
+                pricePoints=price_points,
+                priceCash=price_cash,
                 quantity=card.get("quantity", 0),
                 rarity=card.get("rarity", 1)
             )

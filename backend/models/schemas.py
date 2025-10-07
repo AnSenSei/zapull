@@ -72,6 +72,7 @@ class OfficialListingCardInfo(BaseModel):
     date_got_in_stock_unix: Optional[int] = None  # Unix timestamp for date_got_in_stock
     image_url: str
     pricePoints: int
+    priceCash: float
     quantity: int
     rarity: int
 

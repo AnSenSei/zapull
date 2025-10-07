@@ -192,3 +192,17 @@ class StripeStatusResponse(BaseModel):
     Response model for Stripe Connect account status.
     """
     status: Literal["not_connected", "incomplete", "ready"] = Field(..., description="Status of the Stripe Connect account")
+
+class OfficialShopItem(BaseModel):
+    """
+    Model for a single item in official shop checkout.
+    """
+    collection_id: str = Field(..., description="The collection ID (e.g., 'pokemon')")
+    card_id: str = Field(..., description="The card ID")
+    quantity: int = Field(..., description="Quantity of the card to purchase")
+
+class OfficialShopCheckoutRequest(BaseModel):
+    """
+    Request model for creating an official shop checkout session.
+    """
+    items: List[OfficialShopItem] = Field(..., description="List of items to purchase")

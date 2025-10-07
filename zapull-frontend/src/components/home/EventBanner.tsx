@@ -88,8 +88,8 @@ export default function EventBanner({ isMobile }: EventBannerProps) {
                   // Whatnot banner: Redirect to Whatnot profile
                   window.open('https://www.whatnot.com/user/zapull', '_blank');
                 } else if (i === 3) {
-                  // Events banner moved to slide 4
-                  router.push('/events'); 
+                  // Redirect to shop instead of events
+                  router.push('/shop'); 
                 }
               }}
             >

@@ -24,6 +24,7 @@ class OfficialListingCardInfo(BaseModel):
     date_got_in_stock: str
     image_url: str
     pricePoints: int
+    priceCash: float
     quantity: int
     rarity: int
 

@@ -319,3 +319,117 @@ async def get_all_withdraw_requests_with_cursor(
         raise HTTPException(status_code=500, detail=f"Failed to get withdraw requests: {str(e)}")
 
 
+async def get_all_shop_orders_with_cursor(
+    db_client: AsyncClient, 
+    limit: int = 10, 
+    cursor: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc"
+) -> AllWithdrawRequestsResponse:
+    """
+    Get all shop orders with cursor-based pagination.
+    This function retrieves shop orders from the card_shipping collection where purchase_type = 'official_shop'.
+
+    Args:
+        db_client: Firestore client
+        limit: The maximum number of items to return (default: 10)
+        cursor: The cursor to start after (optional)
+        sort_by: The field to sort by (default: "created_at")
+        sort_order: The sort order ("asc" or "desc", default: "desc")
+
+    Returns:
+        AllWithdrawRequestsResponse object containing the shop orders and cursor pagination info
+
+    Raises:
+        HTTPException: If there's an error getting the shop orders
+    """
+    try:
+        # Get the card_shipping collection and filter by purchase_type
+        card_shipping_ref = db_client.collection('card_shipping')
+        
+        # Filter by purchase_type = 'official_shop'
+        query = card_shipping_ref.where('purchase_type', '==', 'official_shop')
+
+        # Determine sort direction
+        if sort_order.lower() == "desc":
+            direction = firestore.Query.DESCENDING
+        elif sort_order.lower() == "asc":
+            direction = firestore.Query.ASCENDING
+        else:
+            logger.warning(f"Invalid sort_order '{sort_order}'. Defaulting to DESCENDING.")
+            direction = firestore.Query.DESCENDING
+
+        # Apply sorting
+        query = query.order_by(sort_by, direction=direction)
+
+        # Apply cursor pagination if cursor is provided
+        if cursor:
+            try:
+                # Get the document at the cursor
+                cursor_doc_ref = card_shipping_ref.document(cursor)
+                cursor_doc = await cursor_doc_ref.get()
+
+                if not cursor_doc.exists:
+                    raise HTTPException(status_code=400, detail=f"Invalid cursor: document with ID {cursor} not found")
+
+                # Start after the cursor document
+                query = query.start_after(cursor_doc)
+            except Exception as e:
+                logger.error(f"Error applying cursor pagination: {e}", exc_info=True)
+                raise HTTPException(status_code=400, detail=f"Invalid cursor: {str(e)}")
+
+        # Apply limit
+        query = query.limit(limit + 1)  # Get one extra to check if there are more items
+
+        # Execute the query
+        logger.info(f"Executing Firestore query for all shop orders with cursor pagination")
+        shop_orders = await query.get()
+
+        # Check if there are more items
+        has_more = len(shop_orders) > limit
+
+        # Remove the extra item if there are more
+        if has_more:
+            shop_orders = shop_orders[:limit]
+
+        all_shop_orders = []
+        next_cursor = None
+
+        # Convert each shop order to a WithdrawRequest object (using same schema)
+        for order in shop_orders:
+            order_data = order.to_dict()
+
+            shop_order = WithdrawRequest(
+                id=order.id,
+                created_at=order_data.get('created_at'),
+                request_date=order_data.get('request_date'),
+                status=order_data.get('status', 'pending'),
+                user_id=order_data.get('user_id'),
+                user_email=order_data.get('user_email', ''),
+                card_count=order_data.get('card_count'),
+                shipping_address=order_data.get('shipping_address'),
+                tracking_number=order_data.get('tracking_number')
+            )
+            all_shop_orders.append(shop_order)
+
+            # Set the next cursor to the last document ID
+            next_cursor = order.id
+
+        # Create and return the response
+        response = AllWithdrawRequestsResponse(
+            withdraw_requests=all_shop_orders,
+            pagination=CursorPaginationInfo(
+                next_cursor=next_cursor if has_more else None,
+                limit=limit,
+                has_more=has_more
+            )
+        )
+
+        logger.info(f"Retrieved {len(all_shop_orders)} shop orders with cursor pagination")
+        return response
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting all shop orders with cursor pagination: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get shop orders: {str(e)}")
+

@@ -1258,7 +1258,7 @@ async def get_all_collections() -> List[CollectionMetadata]:
     """
     return await get_all_collection_metadata()
 
-async def add_to_official_listing(collection_id: str, card_id: str, quantity: int = 1, pricePoints: int = 0) -> dict:
+async def add_to_official_listing(collection_id: str, card_id: str, quantity: int = 1, priceCash: float = 0.0, type: str = "card") -> dict:
     """
     Adds a card to the official_listing collection.
     Creates a new collection called "official_listing" if it doesn't exist.
@@ -1278,7 +1278,8 @@ async def add_to_official_listing(collection_id: str, card_id: str, quantity: in
         collection_id: The ID of the collection the card belongs to
         card_id: The ID of the card to add to the official listing
         quantity: The quantity of cards to add to the official listing (default: 1)
-        pricePoints: The price in points for the card in the official listing (default: 0)
+        priceCash: The price in USD for the card in the official listing (default: 0.0)
+        type: The type of item - card, pack, or box (default: card)
 
     Returns:
         dict: The data of the added card
@@ -1340,8 +1341,9 @@ async def add_to_official_listing(collection_id: str, card_id: str, quantity: in
         # Convert the card model to a dictionary for Firestore
         card_dict = card.model_dump()
 
-        # Add the pricePoints and collection_id fields to the card_dict
-        card_dict['pricePoints'] = pricePoints
+        # Add the priceCash, type, and collection_id fields to the card_dict
+        card_dict['priceCash'] = priceCash
+        card_dict['type'] = type
         card_dict['quantity'] = quantity  # Set the quantity to the specified quantity
         card_dict['card_reference'] = f"{effective_collection_name}/{card_id}"  # Add card reference
         card_dict['collection_id'] = collection_id  # Add collection_id field
@@ -1352,7 +1354,7 @@ async def add_to_official_listing(collection_id: str, card_id: str, quantity: in
 
         await doc_ref.set(card_dict)
 
-        logger.info(f"Added card {card_id} from collection {collection_id} to official listing with quantity {quantity} and pricePoints {pricePoints}")
+        logger.info(f"Added card {card_id} from collection {collection_id} to official listing with quantity {quantity}, priceCash ${priceCash}, and type {type}")
         logger.info(f"Updated original card: decreased quantity by {quantity}, increased quantity_in_offical_marketplace by {quantity}")
 
         return card_dict
@@ -1408,16 +1410,17 @@ async def get_all_official_listings(collection_id: str) -> List[dict]:
         logger.error(f"Error retrieving cards from official listing for collection {collection_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Could not retrieve cards from official listing: {str(e)}")
 
-async def update_official_listing(collection_id: str, card_id: str, pricePoints: Optional[int] = None, quantity: Optional[int] = None) -> dict:
+async def update_official_listing(collection_id: str, card_id: str, priceCash: Optional[float] = None, type: Optional[str] = None, quantity: Optional[int] = None) -> dict:
     """
     Updates a card in the official_listing collection.
-    This function updates the pricePoints and/or quantity of a card in the official marketplace.
+    This function updates the priceCash, type, and/or quantity of a card in the official marketplace.
     If quantity is updated, it also updates the original card's quantity and quantity_in_offical_marketplace fields.
 
     Args:
         collection_id: The ID of the collection the card belongs to
         card_id: The ID of the card to update in the official listing
-        pricePoints: The new price in points for the card in the official listing (optional)
+        priceCash: The new price in USD for the card in the official listing (optional)
+        type: The new type for the item - card, pack, or box (optional)
         quantity: The new quantity for the card in the official listing (optional)
 
     Returns:
@@ -1444,10 +1447,15 @@ async def update_official_listing(collection_id: str, card_id: str, pricePoints:
         update_data = {}
         log_parts = []
         
-        if pricePoints is not None:
-            update_data['pricePoints'] = pricePoints
-            official_listing_data['pricePoints'] = pricePoints
-            log_parts.append(f"pricePoints to {pricePoints}")
+        if priceCash is not None:
+            update_data['priceCash'] = priceCash
+            official_listing_data['priceCash'] = priceCash
+            log_parts.append(f"priceCash to ${priceCash}")
+            
+        if type is not None:
+            update_data['type'] = type
+            official_listing_data['type'] = type
+            log_parts.append(f"type to {type}")
             
         if quantity is not None:
             if quantity < 0:

@@ -110,3 +110,17 @@ export const updateShipping = async (id: string, params: UpdateShippingParams): 
 export const deleteShipping = async (id: string): Promise<any> => {
   return request.delete(`/shipping/shipments/${id}`)
 }
+
+// 获取商店订单列表
+export const getShopOrders = async (
+  params: {
+    page?: number
+    per_page?: number
+    sort_by?: string
+    sort_order?: 'asc' | 'desc'
+    search_query?: string
+    status?: string
+  }
+): Promise<ShippingListResponse> => {
+  return request.get('/shipping/shop-orders', { params })
+}

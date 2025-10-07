@@ -19,7 +19,8 @@ async def add_to_official_listing_endpoint(
     collection_id: str = Query(..., description="Collection ID the card belongs to"),
     card_id: str = Query(..., description="Card ID to add to the official listing"),
     quantity: int = Query(1, description="Quantity of cards to add to the official listing"),
-    pricePoints: int = Query(..., description="Price in points for the card in the official listing")
+    priceCash: float = Query(..., description="Price in USD for the card in the official listing"),
+    type: str = Query("card", description="Type of item: card, pack, or box")
 ):
     """
     Adds a card to the official_listing collection.
@@ -31,13 +32,14 @@ async def add_to_official_listing_endpoint(
     - collection_id: The ID of the collection the card belongs to
     - card_id: The ID of the card to add to the official listing
     - quantity: The quantity of cards to add to the official listing (default: 1)
-    - pricePoints: The price in points for the card in the official listing (required)
+    - priceCash: The price in USD for the card in the official listing (required)
+    - type: The type of item - card, pack, or box (default: card)
     """
     try:
-        result = await add_to_official_listing(collection_id, card_id, quantity, pricePoints)
+        result = await add_to_official_listing(collection_id, card_id, quantity, priceCash, type)
         return {
             "status": "success",
-            "message": f"Card {card_id} from collection {collection_id} added to official listing with quantity {quantity} and pricePoints {pricePoints}",
+            "message": f"Card {card_id} from collection {collection_id} added to official listing with quantity {quantity}, priceCash ${priceCash}, and type {type}",
             "data": result
         }
     except HTTPException as e:
@@ -124,30 +126,34 @@ async def withdraw_official_listing_endpoint(
 async def update_official_listing_endpoint(
     collection_id: str = Query(..., description="Collection ID the card belongs to"),
     card_id: str = Query(..., description="Card ID to update in the official listing"),
-    pricePoints: Optional[int] = Query(None, description="New price in points for the card in the official listing"),
+    priceCash: Optional[float] = Query(None, description="New price in USD for the card in the official listing"),
+    type: Optional[str] = Query(None, description="New type for the item: card, pack, or box"),
     quantity: Optional[int] = Query(None, description="New quantity for the card in the official listing")
 ):
     """
     Updates a card in the official_listing collection.
-    This endpoint updates the pricePoints and/or quantity of a card in the official marketplace.
+    This endpoint updates the priceCash, type, and/or quantity of a card in the official marketplace.
 
     Parameters:
     - collection_id: The ID of the collection the card belongs to
     - card_id: The ID of the card to update in the official listing
-    - pricePoints: The new price in points for the card in the official listing (optional)
+    - priceCash: The new price in USD for the card in the official listing (optional)
+    - type: The new type for the item - card, pack, or box (optional)
     - quantity: The new quantity for the card in the official listing (optional)
     """
     try:
         # Validate that at least one field is provided for update
-        if pricePoints is None and quantity is None:
-            raise HTTPException(status_code=400, detail="At least one field (pricePoints or quantity) must be provided for update")
+        if priceCash is None and type is None and quantity is None:
+            raise HTTPException(status_code=400, detail="At least one field (priceCash, type, or quantity) must be provided for update")
             
-        result = await update_official_listing(collection_id, card_id, pricePoints, quantity)
+        result = await update_official_listing(collection_id, card_id, priceCash, type, quantity)
         
         # Build dynamic message based on what was updated
         update_parts = []
-        if pricePoints is not None:
-            update_parts.append(f"pricePoints {pricePoints}")
+        if priceCash is not None:
+            update_parts.append(f"priceCash ${priceCash}")
+        if type is not None:
+            update_parts.append(f"type {type}")
         if quantity is not None:
             update_parts.append(f"quantity {quantity}")
         update_message = " and ".join(update_parts)

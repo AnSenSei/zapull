@@ -1,8 +1,8 @@
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends, Path, Header, Body, Request
 from google.cloud import firestore
-from models.payment_schemas import CreatePaymentIntentRequest, PaymentIntentResponse, StripeOnboardingResponse, StripeDashboardLinkResponse, PaginatedRechargeHistoryResponse, AttachPaymentMethodRequest, PaymentMethodResponse, ListPaymentMethodsResponse, DeletePaymentMethodResponse, PaymentStatusResponse, StripeStatusResponse, WebhookResponse, SetDefaultPaymentMethodResponse
-from service.payment_service import create_payment_intent, create_stripe_connect_account, create_stripe_dashboard_link, create_marketplace_intent, attach_payment_method, list_payment_methods, delete_payment_method, check_payment_status, check_stripe_connect_status, handle_stripe_webhook, set_default_payment_method
+from models.payment_schemas import CreatePaymentIntentRequest, PaymentIntentResponse, StripeOnboardingResponse, StripeDashboardLinkResponse, PaginatedRechargeHistoryResponse, AttachPaymentMethodRequest, PaymentMethodResponse, ListPaymentMethodsResponse, DeletePaymentMethodResponse, PaymentStatusResponse, StripeStatusResponse, WebhookResponse, SetDefaultPaymentMethodResponse, OfficialShopCheckoutRequest
+from service.payment_service import create_payment_intent, create_stripe_connect_account, create_stripe_dashboard_link, create_marketplace_intent, attach_payment_method, list_payment_methods, delete_payment_method, check_payment_status, check_stripe_connect_status, handle_stripe_webhook, set_default_payment_method, create_official_shop_checkout_session
 from config import get_firestore_client, get_logger
 from utils.payment_validation import validate_payment_amount
 from config import settings
@@ -405,6 +405,158 @@ async def check_payment_status_route(
     except Exception as e:
         logger.error(f"Error checking payment status for {payment_intent_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while checking payment status")
+
+@router.post("/payment/create-official-shop-checkout")
+async def create_official_shop_checkout_session(
+    request: dict = Body(...),
+    user_id: str = Depends(get_current_user_id),
+    db: firestore.AsyncClient = Depends(get_firestore_client)
+):
+    """
+    Create a Stripe checkout session for official shop purchases.
+    
+    This endpoint:
+    1. Takes a list of items (collection_id, card_id, quantity)
+    2. Fetches card details and calculates totals
+    3. Creates a Stripe checkout session with automatic tax calculation
+    4. Returns the session URL and price breakdown
+    
+    The client should redirect to the session URL to complete payment.
+    After payment, Stripe will redirect back to success_url or cancel_url.
+    """
+    try:
+        from service.payment_service import create_official_shop_checkout_session
+        
+        # Extract items and address_id from request body
+        items = request.get('items', [])
+        address_id = request.get('address_id')
+        
+        if not items or not isinstance(items, list):
+            raise HTTPException(status_code=400, detail="Items list is required")
+        
+        if not address_id:
+            raise HTTPException(status_code=400, detail="Address ID is required")
+        
+        result = await create_official_shop_checkout_session(
+            user_id=user_id,
+            items=items,
+            address_id=address_id,
+            db_client=db
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating official shop checkout session for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while creating the checkout session")
+
+@router.get("/shop-orders")
+async def get_shop_orders(
+    page: int = 1,
+    per_page: int = 10,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    user_id: str = Depends(get_current_user_id),
+    db: firestore.AsyncClient = Depends(get_firestore_client)
+):
+    """
+    Get all shop orders for the current user with pagination.
+    
+    This endpoint:
+    1. Retrieves shop orders from users/{user_id}/shop_orders subcollection
+    2. Supports pagination and sorting
+    3. Returns order history with details
+    """
+    try:
+        from datetime import datetime
+        
+        # Query user's shop_orders subcollection
+        user_ref = db.collection('users').document(user_id)
+        orders_ref = user_ref.collection('shop_orders')
+        
+        # Apply sorting
+        if sort_order == 'desc':
+            orders_query = orders_ref.order_by(sort_by, direction=firestore.Query.DESCENDING)
+        else:
+            orders_query = orders_ref.order_by(sort_by, direction=firestore.Query.ASCENDING)
+        
+        # Get total count
+        all_orders = await orders_ref.get()
+        total_items = len(all_orders)
+        total_pages = (total_items + per_page - 1) // per_page
+        
+        # Apply pagination
+        orders_query = orders_query.limit(per_page).offset((page - 1) * per_page)
+        orders_docs = await orders_query.get()
+        
+        # Format orders
+        orders = []
+        for doc in orders_docs:
+            order_data = doc.to_dict()
+            order_data['id'] = doc.id
+            # Convert datetime to ISO string if needed
+            if 'created_at' in order_data and isinstance(order_data['created_at'], datetime):
+                order_data['created_at'] = order_data['created_at'].isoformat()
+            if 'order_date' in order_data and isinstance(order_data['order_date'], datetime):
+                order_data['order_date'] = order_data['order_date'].isoformat()
+            orders.append(order_data)
+        
+        return {
+            "shop_orders": orders,
+            "pagination": {
+                "current_page": page,
+                "per_page": per_page,
+                "total_pages": total_pages,
+                "total_items": total_items
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting shop orders for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while retrieving shop orders")
+
+@router.get("/shop-orders/{order_id}")
+async def get_shop_order_detail(
+    order_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: firestore.AsyncClient = Depends(get_firestore_client)
+):
+    """
+    Get details of a specific shop order.
+    
+    This endpoint:
+    1. Retrieves a specific shop order by ID
+    2. Returns full order details including items
+    """
+    try:
+        from datetime import datetime
+        
+        # Get order from user's subcollection
+        user_ref = db.collection('users').document(user_id)
+        order_ref = user_ref.collection('shop_orders').document(order_id)
+        order_doc = await order_ref.get()
+        
+        if not order_doc.exists:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        order_data = order_doc.to_dict()
+        order_data['id'] = order_doc.id
+        
+        # Convert datetime to ISO string if needed
+        if 'created_at' in order_data and isinstance(order_data['created_at'], datetime):
+            order_data['created_at'] = order_data['created_at'].isoformat()
+        if 'order_date' in order_data and isinstance(order_data['order_date'], datetime):
+            order_data['order_date'] = order_data['order_date'].isoformat()
+        
+        return order_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting shop order {order_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while retrieving the order")
 
 @router.get("/stripe/status", response_model=StripeStatusResponse)
 async def check_stripe_connect_status_route(

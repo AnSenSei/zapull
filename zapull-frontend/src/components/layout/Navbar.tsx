@@ -507,11 +507,11 @@ const Navbar = () => {
               
               {/* Wrap events, official odds, synthesis, marketplace, achievement, rank in a div */}
               <div className="flex items-center mx-4 bg-[rgba(74,62,119,0.2)] rounded-md px-2 space-x-3">
-                <Link href="/events" className="flex items-center px-3 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors">
+                <Link href="/shop" className="flex items-center px-3 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors">
                   <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                    <path d="M7 4c0-1.1.9-2 2-2h6c1.1 0 2 .9 2 2v0H7V4zm0 2V5h10v1h3c1.1 0 2 .9 2 2v11c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2h3zM4 8v11h16V8H4zm6 3h4v2h-4v-2z"/>
                   </svg>
-                  <span className="ml-1">Events</span>
+                  <span className="ml-1">Shop</span>
                 </Link>
                 <Link href="/official-packs" className="flex items-center px-3 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors">
                   <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24">
@@ -631,8 +631,8 @@ const Navbar = () => {
                           Listings
                         </Link>
                         <Link href="/user/withdrawals" className="flex items-center px-3 py-1.5 text-sm text-gray-300 hover:bg-[#3F3F5F] hover:text-white transition-all duration-200 font-medium" onClick={() => setIsUserMenuOpen(false)}>
-                          <Image src="/users/withdrawals.png" alt="Withdrawals" width={14} height={14} className="mr-2" />
-                          Withdrawals
+                          <Image src="/users/withdrawals.png" alt="Shipping" width={14} height={14} className="mr-2" />
+                          Shipping
                         </Link>
                         <Link href="/user/affiliate" className="flex items-center px-3 py-1.5 text-sm text-gray-300 hover:bg-[#3F3F5F] hover:text-white transition-all duration-200 font-medium" onClick={() => setIsUserMenuOpen(false)}>
                           <Image src="/users/affiliate.png" alt="Affiliate" width={14} height={14} className="mr-2" />
@@ -783,11 +783,11 @@ const Navbar = () => {
                   
                   {/* Mobile menu events, official odds, synthesis, marketplace, achievement, rank group */}
                   <div className="bg-[rgba(74,62,119,0.3)] rounded-md py-1 px-1 space-y-1 border border-purple-500/20">
-                    <Link href="/events/freedaily-box" className="text-gray-300 hover:text-white hover:bg-[#3F3F5F] py-1.5 px-2 rounded-md flex items-center transition-all duration-200" onClick={() => setIsMenuOpen(false)}>
+                    <Link href="/shop" className="text-gray-300 hover:text-white hover:bg-[#3F3F5F] py-1.5 px-2 rounded-md flex items-center transition-all duration-200" onClick={() => setIsMenuOpen(false)}>
                       <svg className="w-[16px] h-[16px]" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                        <path d="M7 4c0-1.1.9-2 2-2h6c1.1 0 2 .9 2 2v0H7V4zm0 2V5h10v1h3c1.1 0 2 .9 2 2v11c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2h3zM4 8v11h16V8H4zm6 3h4v2h-4v-2z"/>
                       </svg>
-                      <span className="ml-2 font-medium">Events</span>
+                      <span className="ml-2 font-medium">Shop</span>
                     </Link>
                     <Link href="/official-packs" className="text-gray-300 hover:text-white hover:bg-[#3F3F5F] py-1.5 px-2 rounded-md flex items-center transition-all duration-200" onClick={() => setIsMenuOpen(false)}>
                       <svg className="w-[16px] h-[16px]" fill="currentColor" viewBox="0 0 24 24">
@@ -895,8 +895,8 @@ const Navbar = () => {
                       My Listing
                     </Link>
                     <Link href="/user/withdrawals" className="flex items-center px-2.5 py-2 text-gray-300 hover:bg-[#3F3F5F] hover:text-white rounded-md transition-all duration-200 font-medium" onClick={() => setIsMenuOpen(false)}>
-                      <Image src="/users/withdrawals.png" alt="Withdrawals" width={16} height={16} className="w-[16px] h-[16px] mr-2" />
-                      Withdrawals
+                      <Image src="/users/withdrawals.png" alt="Shipping" width={16} height={16} className="w-[16px] h-[16px] mr-2" />
+                      Shipping
                     </Link>
                     <Link href="/user/affiliate" className="flex items-center px-2.5 py-2 text-gray-300 hover:bg-[#3F3F5F] hover:text-white rounded-md transition-all duration-200 font-medium" onClick={() => setIsMenuOpen(false)}>
                       <Image src="/users/affiliate.png" alt="Affiliate" width={16} height={16} className="w-[16px] h-[16px] mr-2" />

@@ -111,3 +111,41 @@ async def get_withdraw_request_detail_route(
     except Exception as e:
         logger.error(f"Error getting withdraw request {request_id} for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while retrieving the withdraw request")
+
+
+@router.get("/shop-orders")
+async def get_all_shop_orders_route(
+    limit: int = Query(10, description="Maximum number of items to return (default: 10)"),
+    cursor: Optional[str] = Query(None, description="Cursor for pagination (optional)"),
+    sort_by: str = Query("created_at", description="Field to sort by (default: created_at)"),
+    sort_order: str = Query("desc", description="Sort order (asc or desc, default: desc)"),
+    db: firestore.AsyncClient = Depends(get_firestore_client)
+):
+    """
+    List all shop orders across all users with cursor-based pagination.
+
+    This endpoint:
+    1. Retrieves shop orders from the card_shipping collection where purchase_type = 'official_shop'
+    2. Supports cursor-based pagination with limit and cursor query parameters
+    3. Supports sorting with sort_by and sort_order query parameters
+    4. Returns a response with shop orders and cursor pagination information
+
+    The cursor parameter is optional for the first request. For subsequent requests,
+    use the next_cursor value from the previous response to get the next page.
+    """
+    try:
+        from service.shipping_service import get_all_shop_orders_with_cursor
+        
+        shop_orders_response = await get_all_shop_orders_with_cursor(
+            db_client=db,
+            limit=limit,
+            cursor=cursor,
+            sort_by=sort_by,
+            sort_order=sort_order
+        )
+        return shop_orders_response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting all shop orders with cursor pagination: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while retrieving shop orders")

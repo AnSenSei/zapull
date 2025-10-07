@@ -17,7 +17,7 @@ export default function UserNavigation({ className = '' }: UserNavigationProps) 
   // 根据当前路径确定活跃的tab
   const getActiveTab = () => {
     if (pathname.includes('/inventory')) return 'inventory'
-    if (pathname.includes('/withdrawals')) return 'withdrawals'
+    if (pathname.includes('/withdrawals')) return 'shipping'
     if (pathname.includes('/synthesis')) return 'fusion'
     if (pathname.includes('/listed')) return 'listings'
     return ''
@@ -59,10 +59,10 @@ export default function UserNavigation({ className = '' }: UserNavigationProps) 
           <Link
             href="/user/withdrawals"
             className={`flex-1 md:flex-none px-3 md:px-4 py-2 rounded-[19px] text-sm md:text-base text-center transition-colors ${
-              activeTab === 'withdrawals' ? 'bg-[#8868FF] text-white' : 'bg-[#282251] text-[#c5c5c5] hover:bg-[#3A3366]'
+              activeTab === 'shipping' ? 'bg-[#8868FF] text-white' : 'bg-[#282251] text-[#c5c5c5] hover:bg-[#3A3366]'
             }`}
           >
-            Withdrawals
+            Shipping
           </Link>
           <Link
             href="/synthesis"

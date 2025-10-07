@@ -1,5 +1,13 @@
 <template>
   <div class="shipping-container">
+    <!-- 类型切换标签页 -->
+    <el-card class="tabs-card" style="margin-bottom: 20px;">
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+        <el-tab-pane label="卡片提取 (Cards)" name="cards"></el-tab-pane>
+        <el-tab-pane label="商店订单 (Shop)" name="shop"></el-tab-pane>
+      </el-tabs>
+    </el-card>
+    
     <el-card class="search-card">
       <el-form ref="searchFormRef" inline>
         <el-form-item label="物流状态" prop="status">
@@ -354,6 +362,7 @@ import {
   createShipping,
   updateShipping,
   deleteShipping,
+  getShopOrders,
   type ShippingInfo,
   type CreateShippingParams,
   type UpdateShippingParams
@@ -363,6 +372,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 defineOptions({
   name: 'ShippingIndex'
 })
+
+// 派生标签页
+const activeTab = ref('cards')
 
 // 搜索表单数据
 const searchForm = reactive({
@@ -511,6 +523,13 @@ const carrierOptions = [
   { label: '其他', value: '其他' }
 ]
 
+// 处理标签页切换
+const handleTabChange = (tab: string) => {
+  // 重置分页并重新获取数据
+  currentPage.value = 1
+  fetchShippingList()
+}
+
 // 获取物流列表
 const fetchShippingList = async () => {
   loading.value = true
@@ -528,7 +547,16 @@ const fetchShippingList = async () => {
       params.status = searchForm.status
     }
     
-    const response = await getShippingList(params)
+    // 根据标签页选择不同API
+    let response
+    if (activeTab.value === 'shop') {
+      // 商店订单使用shop orders API
+      response = await getShopOrders(params)
+    } else {
+      // 卡片提取使用常规shipping API
+      response = await getShippingList(params)
+    }
+    
     tableData.value = response.data.shipments
     total.value = response.data.pagination.total_items
   } catch (error) {
