@@ -1,17 +1,17 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { OfficialCard, OfficialListingsResponse } from '@/lib/marketplaceApi'
 import marketplaceApi from '@/lib/marketplaceApi'
 import CardDetailModal from '@/components/CardDetailModal'
-import MarketplaceGuideModal from '@/components/MarketplaceGuideModal'
+import ShopGuideModal from '@/components/ShopGuideModal'
 import CheckoutModal from '@/components/CheckoutModal'
 import { useAuthStore } from '@/store/authStore'
 import CustomDropdown from '@/components/CustomDropdown'
-import ImprovedSortDropdown from '@/components/ImprovedSortDropdown'
-import PriceRangeFilter from '@/components/PriceRangeFilter'
 import ActiveFilters from '@/components/ActiveFilters'
 import { Card } from '@/lib/packsApi'
 import { getAuthHeaders } from '@/lib/authUtils'
@@ -21,18 +21,24 @@ import toast from 'react-hot-toast'
 const optimizeImage = (url: string, options: { quality?: number; width?: number; height?: number } = {}) => {
   if (!url) return url
   
-  // Extract the domain from the image URL
-  const urlObj = new URL(url)
-  const domain = urlObj.origin
-  const path = urlObj.pathname + urlObj.search
-  
-  const { quality = 80, width, height } = options
-  const params = [`format=auto`, `quality=${quality}`]
-  
-  if (width) params.push(`width=${width}`)
-  if (height) params.push(`height=${height}`)
-  
-  return `${domain}/cdn-cgi/image/${params.join(',')}${path}`
+  try {
+    // Extract the domain from the image URL
+    const urlObj = new URL(url)
+    const domain = urlObj.origin
+    const path = urlObj.pathname + urlObj.search
+    
+    const { quality = 80, width, height } = options
+    const params = [`format=auto`, `quality=${quality}`]
+    
+    if (width) params.push(`width=${width}`)
+    if (height) params.push(`height=${height}`)
+    
+    return `${domain}/cdn-cgi/image/${params.join(',')}${path}`
+  } catch (error) {
+    // If URL parsing fails (e.g., relative URLs), return the original URL
+    // Next.js Image component will handle relative URLs directly
+    return url
+  }
 }
 
 interface CollectionItem {
@@ -43,11 +49,16 @@ interface CollectionItem {
 export default function ShopPage() {
   const { uid, openLoginModal } = useAuthStore()
   const userId = uid || ''
+  const searchParams = useSearchParams()
+  const router = useRouter()
   
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
-  const [sortValue, setSortValue] = useState('createdAt_desc') // Combined sort value
-  const [cards, setCards] = useState<OfficialCard[]>([])
+  const [sortBy, setSortBy] = useState<'priceCash' | 'createdAt'>('priceCash')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [selectedType, setSelectedType] = useState<string>('')  // 'box', 'card', 'pack', or ''
+  const [allCards, setAllCards] = useState<OfficialCard[]>([]) // All filtered/sorted cards
+  const [cards, setCards] = useState<OfficialCard[]>([]) // Cards currently shown on page
   const [loading, setLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -58,8 +69,19 @@ export default function ShopPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedListing, setSelectedListing] = useState<OfficialCard | null>(null)
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false)
-  const [minPriceCash, setMinPriceCash] = useState<number | undefined>(undefined)
-  const [maxPriceCash, setMaxPriceCash] = useState<number | undefined>(undefined)
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
+  
+  // Lock body scroll when filter modal is open
+  useEffect(() => {
+    if (isFilterModalOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isFilterModalOpen])
   
   // Multi-select state (always enabled)
   const [selectedCards, setSelectedCards] = useState<Map<string, { card: OfficialCard; quantity: number }>>(new Map())
@@ -69,28 +91,84 @@ export default function ShopPage() {
   const lastScrollRef = useRef<number | null>(null)
   const lastClickedElRef = useRef<HTMLElement | null>(null)
   
-  // Parse sort value to get sortBy and sortOrder
-  const [sortBy, sortOrder] = sortValue.split('_') as [string, 'asc' | 'desc']
 
   // Fetch shop data
   const fetchShopData = useCallback(async () => {
-    console.debug('[Shop] fetchShopData invoked', { selectedCategory, sortBy, sortOrder, searchQuery, currentPage, minPriceCash, maxPriceCash })
+    console.debug('[Shop] fetchShopData invoked', { selectedCategory, searchQuery, currentPage })
     setLoading(true)
     try {
-      // Fetch official marketplace data
+      // Fetch official marketplace data - no sorting on backend
+      // Backend limits per_page to 100, so we'll fetch all pages
       const params: any = {
         collection_id: selectedCategory || undefined,
-        page: currentPage,
-        per_page: perPage,
-        sort_by: 'priceCash' as const,
-        sort_order: sortOrder,
+        page: 1,
+        per_page: 100, // Max allowed by backend
         search_query: searchQuery || undefined
       }
       
-      const response: OfficialListingsResponse = await marketplaceApi.getOfficialListings(params)
-      setCards(response.cards)
-      setTotalPages(response.pagination.total_pages)
-      setTotalItems(response.pagination.total_items)
+      const firstResponse: OfficialListingsResponse = await marketplaceApi.getOfficialListings(params)
+      
+      // Fetch remaining pages if there are more
+      let allCards = [...firstResponse.cards]
+      const backendTotalPages = firstResponse.pagination.total_pages
+      
+      if (backendTotalPages > 1) {
+        const remainingPagePromises = []
+        for (let page = 2; page <= backendTotalPages; page++) {
+          remainingPagePromises.push(
+            marketplaceApi.getOfficialListings({ ...params, page })
+          )
+        }
+        const remainingResponses = await Promise.all(remainingPagePromises)
+        remainingResponses.forEach(response => {
+          allCards = [...allCards, ...response.cards]
+        })
+      }
+      
+      // Filter by type client-side
+      let filteredCards = allCards
+      if (selectedType) {
+        filteredCards = filteredCards.filter(card => {
+          // Check if card has a type field and it matches the selected type
+          const cardType = (card as any).type || ''
+          return cardType.toLowerCase() === selectedType.toLowerCase()
+        })
+      }
+      
+      // Sort client-side
+      const sortedCards = [...filteredCards].sort((a, b) => {
+        let aValue: any
+        let bValue: any
+        
+        if (sortBy === 'priceCash') {
+          aValue = a.priceCash || 0
+          bValue = b.priceCash || 0
+        } else if (sortBy === 'createdAt') {
+          aValue = a.date_got_in_stock || ''
+          bValue = b.date_got_in_stock || ''
+        } else {
+          aValue = 0
+          bValue = 0
+        }
+        
+        if (sortOrder === 'asc') {
+          return aValue > bValue ? 1 : aValue < bValue ? -1 : 0
+        } else {
+          return aValue < bValue ? 1 : aValue > bValue ? -1 : 0
+        }
+      })
+      
+      // Store all sorted cards and apply pagination
+      setAllCards(sortedCards)
+      const totalItems = sortedCards.length
+      const totalPages = Math.ceil(totalItems / perPage)
+      const startIdx = (currentPage - 1) * perPage
+      const endIdx = startIdx + perPage
+      const paginatedCards = sortedCards.slice(startIdx, endIdx)
+      
+      setCards(paginatedCards)
+      setTotalPages(totalPages)
+      setTotalItems(totalItems)
     } catch (error) {
       console.error('Failed to fetch shop data:', error)
       // If API call fails, use mock data
@@ -107,11 +185,14 @@ export default function ShopPage() {
         date_got_in_stock: new Date().toISOString(),
         rarity: 1
       }))
-      setCards(mockCards)
+      setAllCards(mockCards)
+      setCards(mockCards.slice(0, perPage))
+      setTotalPages(Math.ceil(mockCards.length / perPage))
+      setTotalItems(mockCards.length)
     } finally {
       setLoading(false)
     }
-  }, [selectedCategory, sortBy, sortOrder, searchQuery, currentPage, perPage, minPriceCash, maxPriceCash])
+  }, [selectedCategory, searchQuery, sortBy, sortOrder, selectedType, currentPage, perPage])
 
   // Set hardcoded collections
   const fetchCollections = () => {
@@ -129,6 +210,19 @@ export default function ShopPage() {
     }
   }
 
+  // Check for payment success redirect
+  useEffect(() => {
+    const success = searchParams.get('success')
+    if (success === 'true') {
+      toast.success('Order successful! Check your order in Orders', {
+        duration: 5000,
+        icon: '🎉'
+      })
+      // Clean up URL without the success parameter
+      window.history.replaceState({}, '', '/shop')
+    }
+  }, [searchParams])
+
   // Use useEffect to fetch data
   useEffect(() => {
     fetchCollections()
@@ -140,17 +234,22 @@ export default function ShopPage() {
       fetchShopData()
     }
   }, [fetchShopData, collections.length, selectedCategory])
+  
+  // Scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [currentPage])
 
   // Handle category selection
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId)
-    setCurrentPage(1) // Reset to first page
+    setCurrentPage(1)
   }
 
   // Handle search
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setCurrentPage(1) // Reset to first page
+    setCurrentPage(1)
   }
 
   // Handle card selection for multi-select
@@ -255,30 +354,12 @@ export default function ShopPage() {
           {/* 移动端标题 */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-white text-center">Official Shop</h1>
-            <p className="text-gray-400 text-center text-sm mt-2">Purchase official cards with cash</p>
+            <p className="text-gray-400 text-center text-sm mt-2">Purchase with cash</p>
           </div>
 
-          {/* 移动端工具栏 - 垂直布局 */}
+          {/* 移动端工具栏 - 更紧凑的布局 */}
           <div className="space-y-3 mb-4">
-            {/* 搜索框 */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search cards..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="bg-[#1E1F35] text-white border border-gray-600 rounded-lg pl-10 pr-4 py-2 w-full focus:outline-none focus:border-purple-500"
-              />
-              <Image 
-                src="/marketplace/serach.png" 
-                alt="search" 
-                width={16} 
-                height={16} 
-                className="absolute left-3 top-1/2 transform -translate-y-1/2"
-              />
-            </div>
-
-            {/* Collection dropdown */}
+            {/* Collection dropdown stays outside */}
             <CustomDropdown
               value={selectedCategory}
               onChange={handleCategorySelect}
@@ -287,109 +368,56 @@ export default function ShopPage() {
               className="w-full"
             />
 
-            {/* 排序选项 */}
-            <ImprovedSortDropdown
-              value={sortValue}
-              onChange={(value) => {
-                setSortValue(value)
-                setCurrentPage(1)
-              }}
-              options={[
-                { id: 'recent', label: 'Recently Added', value: 'createdAt', order: 'desc', icon: '🕐' },
-                { id: 'cash_low', label: 'Price: Low to High', value: 'priceCash', order: 'asc', icon: '💵' },
-                { id: 'cash_high', label: 'Price: High to Low', value: 'priceCash', order: 'desc', icon: '💵' },
-              ]}
-              className="w-full"
-            />
+            {/* Filter + Compact buttons in one line */}
+            <div className="flex items-center gap-2">
+              {/* Filter Button - filled when active */}
+              <button
+                onClick={() => setIsFilterModalOpen(true)}
+                className={`px-3 py-2 text-white rounded-lg transition-colors flex items-center gap-2 ${
+                  (searchQuery || selectedType || (sortBy !== 'priceCash' || sortOrder !== 'desc'))
+                    ? 'bg-purple-600 border border-purple-500 hover:bg-purple-700'
+                    : 'bg-[#1E1F35] border border-gray-600 hover:border-purple-500'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.591L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm">Filter</span>
+              </button>
 
-            {/* 价格过滤 */}
-            <PriceRangeFilter
-              type="cash"
-              minValue={minPriceCash}
-              maxValue={maxPriceCash}
-              onMinChange={(value) => {
-                setMinPriceCash(value)
-                setCurrentPage(1)
-              }}
-              onMaxChange={(value) => {
-                setMaxPriceCash(value)
-                setCurrentPage(1)
-              }}
-              className="w-full"
-            />
-
-            {/* 操作按钮 + 刷新 */}
-            <div className="flex justify-end gap-2">
+              {/* Compact buttons */}
+              <button
+                onClick={() => router.push('/user/withdrawals?tab=shop')}
+                className="px-2 py-2 text-xs font-medium rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow hover:shadow-md transition-all border border-blue-500/50 flex-1"
+                aria-label="Orders"
+              >
+                Orders
+              </button>
               <button
                 onClick={() => {
                   setSelectedCards(new Map())
                   fetchShopData()
                 }}
                 disabled={loading}
-                className={`inline-flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-md transition-all
+                className={`px-2 py-2 text-xs font-medium rounded-lg transition-all flex-1
                   ${loading
                     ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white shadow hover:shadow-md hover:scale-[1.02] active:scale-[0.99]'}
+                    : 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white shadow hover:shadow-md'}
                   border border-purple-500/50`}
-                aria-label="Refresh listings"
-                title={loading ? 'Refreshing…' : 'Refresh listings'}
+                aria-label="Refresh"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}>
-                  <path fillRule="evenodd" d="M3.172 7.172a8 8 0 111.414 1.414L3 6v4h4L5.636 8.636A6 6 0 1010 4v2a.75.75 0 01-1.28.53L6.53 4.34a.75.75 0 010-1.06L8.72 1.09A.75.75 0 0110 1.62V4a8 8 0 00-6.828 3.172z" clipRule="evenodd" />
-                </svg>
-                <span>{loading ? 'Refreshing…' : 'Refresh'}</span>
+                {loading ? '...' : 'Refresh'}
               </button>
-              <div className="text-center cursor-pointer hover:opacity-80 transition-opacity bg-[#1E1F35] rounded-lg p-3" onClick={() => setIsGuideModalOpen(true)}>
-                <div className="text-white font-medium flex items-center justify-center">
-                  <Image src="/marketplace/operation.png" alt="operation" width={20} height={20} />
-                </div>
-                <div className="text-gray-400 text-xs">Operation</div>
-              </div>
+              <button
+                className="px-2 py-2 bg-[#1E1F35] rounded-lg hover:opacity-80 transition-opacity border border-gray-600"
+                onClick={() => setIsGuideModalOpen(true)}
+                aria-label="Operation"
+              >
+                <Image src="/marketplace/operation.png" alt="operation" width={20} height={20} />
+              </button>
             </div>
           </div>
 
-          {/* Active Filters Display */}
-          <ActiveFilters
-            filters={[
-              ...(selectedCategory && selectedCategory !== 'pokemon' ? [{
-                key: 'collection',
-                label: 'Collection',
-                value: collections.find(c => c.id === selectedCategory)?.name || selectedCategory,
-                onClear: () => {
-                  setSelectedCategory('pokemon')
-                  setCurrentPage(1)
-                }
-              }] : []),
-              ...(searchQuery ? [{
-                key: 'search',
-                label: 'Search',
-                value: searchQuery,
-                onClear: () => {
-                  setSearchQuery('')
-                  setCurrentPage(1)
-                }
-              }] : []),
-              ...(minPriceCash !== undefined || maxPriceCash !== undefined ? [{
-                key: 'price_cash',
-                label: 'Price',
-                value: `$${minPriceCash || '0'} - $${maxPriceCash || '∞'}`,
-                onClear: () => {
-                  setMinPriceCash(undefined)
-                  setMaxPriceCash(undefined)
-                  setCurrentPage(1)
-                }
-              }] : [])
-            ]}
-            onClearAll={() => {
-              setSelectedCategory('pokemon')
-              setSearchQuery('')
-              setMinPriceCash(undefined)
-              setMaxPriceCash(undefined)
-              setCurrentPage(1)
-            }}
-            resultCount={totalItems}
-            className="mb-4"
-          />
 
           {/* 移动端加载状态 */}
           {loading && (
@@ -532,25 +560,11 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
             {/* 桌面端标题 */}
             <div className="mb-8 text-center">
               <h1 className="text-4xl font-bold text-white">Official Shop</h1>
-              <p className="text-gray-400 mt-2">Purchase official cards with cash</p>
+              <p className="text-gray-400 mt-2">Purchase with cash</p>
             </div>
 
             {/* Toolbar - single line layout */}
             <div className="flex items-center justify-between mb-6 flex-wrap xl:flex-nowrap gap-4">
-              {/* Sort */}
-              <ImprovedSortDropdown
-                value={sortValue}
-                onChange={(value) => {
-                  setSortValue(value)
-                  setCurrentPage(1)
-                }}
-                options={[
-                  { id: 'recent', label: 'Recently Added', value: 'createdAt', order: 'desc', icon: '🕐' },
-                  { id: 'cash_low', label: 'Price: Low to High', value: 'priceCash', order: 'asc', icon: '💵' },
-                  { id: 'cash_high', label: 'Price: High to Low', value: 'priceCash', order: 'desc', icon: '💵' },
-                ]}
-              />
-
               {/* Collection dropdown */}
               <CustomDropdown
                 value={selectedCategory}
@@ -558,21 +572,17 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
                 options={collections}
                 placeholder="Select Collection"
               />
-
-              {/* Price filter */}
-              <PriceRangeFilter
-                type="cash"
-                minValue={minPriceCash}
-                maxValue={maxPriceCash}
-                onMinChange={(value) => {
-                  setMinPriceCash(value)
-                  setCurrentPage(1)
-                }}
-                onMaxChange={(value) => {
-                  setMaxPriceCash(value)
-                  setCurrentPage(1)
-                }}
-              />
+              
+              {/* Filter Button */}
+              <button
+                onClick={() => setIsFilterModalOpen(true)}
+                className="px-4 py-2 bg-[#1E1F35] text-white border border-gray-600 rounded-lg hover:border-purple-500 transition-colors flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.591L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clipRule="evenodd" />
+                </svg>
+                <span>Filter</span>
+              </button>
 
               {/* Search box */}
               <div className="relative">
@@ -594,6 +604,17 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
               
               {/* Operation + Refresh */}
               <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.push('/user/withdrawals?tab=shop')}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-md transition-all bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow hover:shadow-md hover:scale-[1.02] active:scale-[0.99] border border-blue-500/50"
+                  aria-label="View Orders"
+                  title="View your shop orders"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                    <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+                  </svg>
+                  <span>View Orders</span>
+                </button>
                 <button
                   onClick={() => {
                     setSelectedCards(new Map())
@@ -640,25 +661,35 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
                   value: searchQuery,
                   onClear: () => {
                     setSearchQuery('')
-                    setCurrentPage(1)
                   }
-                }] : []),
-                ...(minPriceCash !== undefined || maxPriceCash !== undefined ? [{
-                  key: 'price_cash',
-                  label: 'Price',
-                  value: `$${minPriceCash || '0'} - $${maxPriceCash || '∞'}`,
+              }] : []),
+              ...((sortBy !== 'priceCash' || sortOrder !== 'desc') ? [{
+                key: 'sort',
+                label: 'Sort',
+                value: sortBy === 'priceCash' 
+                  ? (sortOrder === 'asc' ? 'Price: Low to High' : 'Price: High to Low')
+                  : 'Recently Added',
+                onClear: () => {
+                  setSortBy('priceCash')
+                  setSortOrder('desc')
+                  setCurrentPage(1)
+                }
+              }] : []),
+                ...(selectedType ? [{
+                  key: 'type',
+                  label: 'Type',
+                  value: selectedType.charAt(0).toUpperCase() + selectedType.slice(1),
                   onClear: () => {
-                    setMinPriceCash(undefined)
-                    setMaxPriceCash(undefined)
-                    setCurrentPage(1)
+                    setSelectedType('')
                   }
                 }] : [])
               ]}
               onClearAll={() => {
                 setSelectedCategory('pokemon')
                 setSearchQuery('')
-                setMinPriceCash(undefined)
-                setMaxPriceCash(undefined)
+                setSortBy('priceCash')
+                setSortOrder('desc')
+                setSelectedType('')
                 setCurrentPage(1)
               }}
               resultCount={totalItems}
@@ -827,8 +858,8 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
         collectionName={collections.find(c => c.id === selectedListing?.collection_id)?.name}
       />
       
-      {/* Marketplace guide modal */}
-      <MarketplaceGuideModal
+      {/* Shop guide modal */}
+      <ShopGuideModal
         isOpen={isGuideModalOpen}
         onClose={() => setIsGuideModalOpen(false)}
       />
@@ -841,6 +872,157 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
         onSuccess={handleCheckoutSuccess}
         userId={userId}
       />
+      
+      {/* Filter Modal */}
+      {isFilterModalOpen && typeof document !== 'undefined' && createPortal(
+        <>
+          <div className="fixed inset-0 z-[997] bg-black/50" onClick={() => setIsFilterModalOpen(false)} />
+          <div className="fixed inset-0 z-[998] flex items-start justify-center overflow-y-auto">
+            <div className="mt-16 mb-8 w-full max-w-xl bg-[#2A2B3D] border border-[#8B5CF6]/30 rounded-lg shadow-2xl mx-4">
+              <div className="sticky top-0 bg-[#2A2B3D] p-4 border-b border-[#3F3F5F] flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white">Filter Shop</h3>
+                <button
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className="p-1 hover:bg-[#3F3F5F] rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-4 sm:p-6 space-y-4">
+                {/* Search Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Search Cards
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search by card name..."
+                      value={searchQuery}
+                      onChange={(e) => handleSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-[#1E1F2E] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8B5CF6] placeholder-gray-500"
+                    />
+                    <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                </div>
+                
+                {/* Sort By Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Sort By
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => { setSortBy('createdAt'); setSortOrder('desc'); }}
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        sortBy === 'createdAt' && sortOrder === 'desc'
+                          ? 'bg-[#8B5CF6] text-white'
+                          : 'bg-[#1E1F2E] text-gray-300 hover:bg-[#2A2B3D]'
+                      }`}
+                    >
+                      Recently Added
+                    </button>
+                    <button
+                      onClick={() => { setSortBy('priceCash'); setSortOrder('asc'); }}
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        sortBy === 'priceCash' && sortOrder === 'asc'
+                          ? 'bg-[#8B5CF6] text-white'
+                          : 'bg-[#1E1F2E] text-gray-300 hover:bg-[#2A2B3D]'
+                      }`}
+                    >
+                      Price: Low to High
+                    </button>
+                    <button
+                      onClick={() => { setSortBy('priceCash'); setSortOrder('desc'); }}
+                      className={`px-4 py-2 rounded-lg transition-colors col-span-2 ${
+                        sortBy === 'priceCash' && sortOrder === 'desc'
+                          ? 'bg-[#8B5CF6] text-white'
+                          : 'bg-[#1E1F2E] text-gray-300 hover:bg-[#2A2B3D]'
+                      }`}
+                    >
+                      Price: High to Low
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Type Filter Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Product Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setSelectedType('')}
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        selectedType === ''
+                          ? 'bg-[#8B5CF6] text-white'
+                          : 'bg-[#1E1F2E] text-gray-300 hover:bg-[#2A2B3D]'
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setSelectedType('card')}
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        selectedType === 'card'
+                          ? 'bg-[#8B5CF6] text-white'
+                          : 'bg-[#1E1F2E] text-gray-300 hover:bg-[#2A2B3D]'
+                      }`}
+                    >
+                      Card
+                    </button>
+                    <button
+                      onClick={() => setSelectedType('pack')}
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        selectedType === 'pack'
+                          ? 'bg-[#8B5CF6] text-white'
+                          : 'bg-[#1E1F2E] text-gray-300 hover:bg-[#2A2B3D]'
+                      }`}
+                    >
+                      Pack
+                    </button>
+                    <button
+                      onClick={() => setSelectedType('box')}
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        selectedType === 'box'
+                          ? 'bg-[#8B5CF6] text-white'
+                          : 'bg-[#1E1F2E] text-gray-300 hover:bg-[#2A2B3D]'
+                      }`}
+                    >
+                      Box
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="sticky bottom-0 bg-[#2A2B3D] p-4 border-t border-[#3F3F5F] flex gap-3">
+                <button
+                  onClick={() => {
+                    setSearchQuery('')
+                    setSortBy('createdAt')
+                    setSortOrder('desc')
+                    setSelectedType('')
+                    setCurrentPage(1)
+                  }}
+                  className="flex-1 px-4 py-2 bg-[#3F3F5F] hover:bg-[#4F4F6F] text-white rounded-lg transition-colors"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className="flex-1 px-4 py-2 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white rounded-lg transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   )
 }

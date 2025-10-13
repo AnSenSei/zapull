@@ -27,6 +27,7 @@ class OfficialListingCardInfo(BaseModel):
     priceCash: float
     quantity: int
     rarity: int
+    type: Optional[str] = "card"  # Type of item: card, pack, or box
 
 
 class OfficialListingResponse(BaseModel):

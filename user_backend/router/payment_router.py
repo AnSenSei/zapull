@@ -558,6 +558,39 @@ async def get_shop_order_detail(
         logger.error(f"Error getting shop order {order_id} for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while retrieving the order")
 
+@router.post("/shop-orders/{order_id}/cancel")
+async def cancel_shop_order_route(
+    order_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: firestore.AsyncClient = Depends(get_firestore_client)
+):
+    """
+    Cancel a shop order and release the Stripe authorization.
+    
+    This endpoint:
+    1. Verifies the order belongs to the user
+    2. Checks the order is in 'authorized' status
+    3. Cancels the Stripe PaymentIntent (releases the hold)
+    4. Updates order status to 'cancelled'
+    5. Restores stock to official_listing
+    """
+    try:
+        from service.payment_service import cancel_shop_order
+        
+        result = await cancel_shop_order(
+            order_id=order_id,
+            user_id=user_id,
+            db_client=db
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cancelling shop order {order_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while cancelling the order")
+
 @router.get("/stripe/status", response_model=StripeStatusResponse)
 async def check_stripe_connect_status_route(
     user_id: str = Depends(get_current_user_id),

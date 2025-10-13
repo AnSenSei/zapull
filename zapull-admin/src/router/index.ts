@@ -222,14 +222,8 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: '',
         name: 'Shipping',
-        component: () => import('@/views/shipping/new-index.vue'),
-        meta: { title: '物流信息' }
-      },
-      {
-        path: 'legacy',
-        name: 'ShippingLegacy',
         component: () => import('@/views/shipping/index.vue'),
-        meta: { title: '物流信息(旧)' }
+        meta: { title: '物流信息' }
       }
     ]
   }

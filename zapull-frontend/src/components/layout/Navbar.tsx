@@ -418,6 +418,17 @@ const Navbar = () => {
                 </svg>
               </button>
               
+              {/* Shop button - Mobile only */}
+              <Link 
+                href="/shop" 
+                className="md:hidden absolute left-[calc(100%+8px)] top-0 flex flex-col items-center justify-center p-1.5 bg-[#1E1F2E] hover:bg-[#3F3F5F] rounded-md transition-colors group min-w-[50px]"
+              >
+                <svg className="w-5 h-5 text-gray-300 group-hover:text-white mb-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7 4c0-1.1.9-2 2-2h6c1.1 0 2 .9 2 2v0H7V4zm0 2V5h10v1h3c1.1 0 2 .9 2 2v11c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2h3zM4 8v11h16V8H4zm6 3h4v2h-4v-2z"/>
+                </svg>
+                <span className="text-gray-300 group-hover:text-white text-[10px] leading-tight">Shop</span>
+              </Link>
+              
               {/* Dropdown menu (modal-sized, scrollable) */}
               {isCategoryMenuOpen && (
                 <div className="absolute left-0 top-[calc(100%+8px)] w-[56px] bg-[#2A2B3D] border border-purple-500/20 rounded-[10px] shadow-xl overflow-hidden z-[100] max-h-[60vh] overflow-y-auto">
@@ -631,8 +642,8 @@ const Navbar = () => {
                           Listings
                         </Link>
                         <Link href="/user/withdrawals" className="flex items-center px-3 py-1.5 text-sm text-gray-300 hover:bg-[#3F3F5F] hover:text-white transition-all duration-200 font-medium" onClick={() => setIsUserMenuOpen(false)}>
-                          <Image src="/users/withdrawals.png" alt="Shipping" width={14} height={14} className="mr-2" />
-                          Shipping
+                          <Image src="/users/withdrawals.png" alt="Orders" width={14} height={14} className="mr-2" />
+                          Orders
                         </Link>
                         <Link href="/user/affiliate" className="flex items-center px-3 py-1.5 text-sm text-gray-300 hover:bg-[#3F3F5F] hover:text-white transition-all duration-200 font-medium" onClick={() => setIsUserMenuOpen(false)}>
                           <Image src="/users/affiliate.png" alt="Affiliate" width={14} height={14} className="mr-2" />
@@ -895,8 +906,8 @@ const Navbar = () => {
                       My Listing
                     </Link>
                     <Link href="/user/withdrawals" className="flex items-center px-2.5 py-2 text-gray-300 hover:bg-[#3F3F5F] hover:text-white rounded-md transition-all duration-200 font-medium" onClick={() => setIsMenuOpen(false)}>
-                      <Image src="/users/withdrawals.png" alt="Shipping" width={16} height={16} className="w-[16px] h-[16px] mr-2" />
-                      Shipping
+                      <Image src="/users/withdrawals.png" alt="Orders" width={16} height={16} className="w-[16px] h-[16px] mr-2" />
+                      Orders
                     </Link>
                     <Link href="/user/affiliate" className="flex items-center px-2.5 py-2 text-gray-300 hover:bg-[#3F3F5F] hover:text-white rounded-md transition-all duration-200 font-medium" onClick={() => setIsMenuOpen(false)}>
                       <Image src="/users/affiliate.png" alt="Affiliate" width={16} height={16} className="w-[16px] h-[16px] mr-2" />

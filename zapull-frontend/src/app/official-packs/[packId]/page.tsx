@@ -340,6 +340,7 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
   const [skipEnabled, setSkipEnabled] = useState<boolean>(false)
   const [demoMode, setDemoMode] = useState<boolean>(false)
   const [isDemoDrawing, setIsDemoDrawing] = useState(false)
+  const skipTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   // Video dimensions calculation (same as normal pack)
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1200
@@ -543,7 +544,7 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
       
       // Auto-skip animation after video duration, or immediately if skip is enabled
       // Use same timing as normal pack opening - let video play to completion
-      setTimeout(() => {
+      skipTimeoutRef.current = setTimeout(() => {
         handleSkipAnimation()
       }, skipEnabled ? 100 : 5000) // Skip immediately if skip is enabled, otherwise 5 seconds to match video duration
       
@@ -659,7 +660,7 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
       
       // Auto-skip animation after video duration, or immediately if skip is enabled
       // Use same timing as normal pack opening - let video play to completion
-      setTimeout(() => {
+      skipTimeoutRef.current = setTimeout(() => {
         handleSkipAnimation()
       }, skipEnabled ? 100 : 5000) // Skip immediately if skip is enabled, otherwise 5 seconds to match video duration
       
@@ -673,6 +674,15 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
 
   // Handle skip animation
   const handleSkipAnimation = () => {
+    // Clear any pending skip timeout to prevent duplicate transitions
+    if (skipTimeoutRef.current) {
+      clearTimeout(skipTimeoutRef.current)
+      skipTimeoutRef.current = null
+    }
+    
+    // Only transition if we're still in the draw modal state
+    if (!showDrawModal) return
+    
     setShowDrawModal(false)
     setShowGif(false)
     setShowCardAnimation(true) // Show card reveal stack instead of going directly to results
@@ -720,7 +730,8 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
         // Use setTimeout to ensure the card is rendered before getting position (reduced delay)
         setTimeout(() => {
           // Get the revealed cards container position for better particle positioning
-          const revealedContainer = document.querySelector('.cardPile')
+          // Use more specific selector to get the actual revealed card pile
+          const revealedContainer = document.querySelector('.cardPilesContainer .cardPile:last-child')
           let centerX = window.innerWidth / 2
           let centerY = window.innerHeight / 2
           
@@ -728,14 +739,14 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
             const rect = revealedContainer.getBoundingClientRect()
             centerX = rect.left + rect.width / 2
             centerY = rect.top + rect.height / 2
-            
-            // On mobile, adjust for potential viewport offset
-            if (window.visualViewport && (window.visualViewport.width !== window.innerWidth || window.visualViewport.height !== window.innerHeight)) {
-              const offsetX = window.visualViewport.offsetLeft || 0;
-              const offsetY = window.visualViewport.offsetTop || 0;
-              centerX = centerX - offsetX;
-              centerY = centerY - offsetY;
-            }
+          }
+          
+          // Always use viewport coordinates for particle positioning on mobile
+          // This ensures particles appear at the correct position regardless of scroll state
+          if (window.visualViewport) {
+            // Visual viewport gives us the actual visible area
+            // No need to subtract offsets - getBoundingClientRect already gives viewport-relative coords
+            // Just ensure we're within the visual viewport bounds
           }
           
           const burstId = `burst-${Date.now()}-${Math.random()}`
@@ -773,8 +784,14 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
     }
   }
 
-  // Skip animation
+  // Skip animation - for card reveal stage
   const skipAnimation = () => {
+    // Clear any pending skip timeout from draw animation
+    if (skipTimeoutRef.current) {
+      clearTimeout(skipTimeoutRef.current)
+      skipTimeoutRef.current = null
+    }
+    
     setAnimationSkipped(true)
     setIsRevealing(false)
     setRevealedCards(drawResults?.cards || [])
@@ -1270,7 +1287,14 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
       {/* Card Animation Modal - Mobile Centered */}
       {showCardAnimation && drawResults && (
         <div className={styles.drawModal} role="dialog" aria-modal="true">
-          <div className={styles.drawModalContent}>
+          <div className={styles.drawModalContent} style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh',
+            padding: '1rem'
+          }}>
             <style jsx>{`
               @keyframes rarityGlowRed {
                 0% { box-shadow: 0 0 20px rgba(255, 71, 87, 0.6), 0 0 40px rgba(255, 71, 87, 0.3); }
@@ -1342,8 +1366,8 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
               }
             `}</style>
             
-            {/* Pack Name */}
-            <div className="text-center mb-4 md:mb-8 px-4">
+            {/* Pack Name - Positioned Above Card Stack */}
+            <div className="text-center mb-6 px-4" style={{ width: '100%' }}>
               <h2 className="text-xl md:text-2xl font-bold text-white mb-2">{pack?.name || 'Official Pack'}</h2>
               {demoMode && (
                 <div className="inline-block bg-green-600/20 border border-green-500/30 rounded-lg px-3 py-1 md:px-4 md:py-2">
@@ -1356,7 +1380,7 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
             </div>
             
             {/* Two Card Piles Layout - Mobile Responsive */}
-            <div className="cardPilesContainer mb-4 md:mb-8">
+            <div className="cardPilesContainer">
               {/* Unrevealed Cards Stack */}
               <div className="cardPile">
                 {drawResults.cards.length - revealedCards.length > 0 ? (
@@ -1490,28 +1514,28 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
               </div>
             </div>
               
-            {/* Click instruction */}
-            <div className="text-center px-4">
+            {/* Click instruction - Positioned Below Card Stack */}
+            <div className="text-center px-4 mt-6" style={{ width: '100%' }}>
               {revealedCards.length < drawResults.cards.length && (
-                <p className="text-white text-base md:text-lg animate-pulse">
-                  Click the card to reveal! ({revealedCards.length + 1}/{drawResults.cards.length})
+                <p className="text-white text-base md:text-lg animate-pulse mb-4">
+                  👆 Click the card to reveal! ({revealedCards.length + 1}/{drawResults.cards.length})
                 </p>
               )}
               {revealedCards.length >= drawResults.cards.length && (
-                <p className="text-green-400 text-base md:text-lg font-bold">
+                <p className="text-green-400 text-base md:text-lg font-bold mb-4">
                   All cards revealed! ✨
                 </p>
               )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-center gap-4 mt-4 md:mt-8 mb-4 md:mb-8 px-4">
-              <button
-                onClick={skipAnimation}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg font-medium transition-colors text-sm md:text-base"
-              >
-                Skip Animation
-              </button>
+              
+              {/* Action Buttons - Positioned Below Instructions */}
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={skipAnimation}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg font-medium transition-colors text-sm md:text-base"
+                >
+                  Skip ⏭️
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1555,7 +1579,10 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
                   }}
                   onEnded={() => {
                     console.log('Draw animation video ended, showing cards')
-                    handleSkipAnimation()
+                    // Only transition if we're still showing the draw modal (not already skipped)
+                    if (showDrawModal) {
+                      handleSkipAnimation()
+                    }
                   }}
                   onLoadedData={() => {
                     console.log('Draw animation video loaded')

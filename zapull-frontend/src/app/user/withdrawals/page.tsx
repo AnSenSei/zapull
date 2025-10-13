@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useAuthStore } from '@/store/authStore'
@@ -11,9 +11,12 @@ import { userApi, WithdrawRequest, WithdrawRequestsResponse } from '@/lib/userAp
 import { paymentApi, ShopOrder } from '@/lib/paymentApi'
 import CreateWithdrawModal from '@/components/CreateWithdrawModal'
 import WithdrawDetailsModal from '@/components/WithdrawDetailsModal'
+import ShopOrderDetailsModal from '@/components/ShopOrderDetailsModal'
+import toast from 'react-hot-toast'
 
 export default function WithdrawalsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<'cards' | 'shop'>('cards')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawRequest[]>([])
@@ -25,8 +28,20 @@ export default function WithdrawalsPage() {
   const [totalItems, setTotalItems] = useState(0)
   const [pendingCards, setPendingCards] = useState<{ card_name: string; quantity: number; subcollection_name: string }[] | null>(null)
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null)
+  const [cancelShopOrderId, setCancelShopOrderId] = useState<string | null>(null)
   const [detailsRequestId, setDetailsRequestId] = useState<string | null>(null)
+  const [shopOrderDetailsId, setShopOrderDetailsId] = useState<string | null>(null)
   const { userInfo, authInitialized } = useAuthStore() // 获取用户信息
+
+  // Check for tab query parameter and set active tab
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam === 'shop') {
+      setActiveTab('shop')
+    } else if (tabParam === 'cards') {
+      setActiveTab('cards')
+    }
+  }, [searchParams])
 
   // Check authentication and pending withdraw cards from inventory page
   useEffect(() => {
@@ -125,6 +140,20 @@ export default function WithdrawalsPage() {
     } catch (error) {
       console.error('删除提现请求失败:', error)
       alert('Failed to cancel withdrawal request')
+    }
+  }
+
+  // 处理取消商店订单
+  const handleCancelShopOrder = async (orderId: string) => {
+    try {
+      await paymentApi.cancelShopOrder(orderId)
+      setCancelShopOrderId(null)
+      // 重新获取数据
+      fetchShopOrders()
+      toast.success('Order cancelled successfully! Stock has been restored and payment authorization released.')
+    } catch (error) {
+      console.error('取消商店订单失败:', error)
+      toast.error('Failed to cancel shop order. It may have already been processed.')
     }
   }
 
@@ -405,13 +434,14 @@ export default function WithdrawalsPage() {
                       <th className="py-3 text-left">Order time</th>
                       <th className="py-3 text-left">Items</th>
                       <th className="py-3 text-left">Amount</th>
+                      <th className="py-3 text-left">Tracking</th>
                       <th className="py-3 text-right">Operation</th>
                     </tr>
                   </thead>
                   <tbody>
                     {shopOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-8 text-center text-gray-400">
+                        <td colSpan={6} className="py-8 text-center text-gray-400">
                           No shop orders found
                         </td>
                       </tr>
@@ -425,7 +455,9 @@ export default function WithdrawalsPage() {
                         const getStatusColor = (status: string) => {
                           switch (status.toLowerCase()) {
                             case 'pending':
+                            case 'authorized':
                               return 'bg-yellow-500/20 text-yellow-500'
+                            case 'confirmed':
                             case 'processing':
                               return 'bg-blue-500/20 text-blue-500'
                             case 'shipped':
@@ -449,16 +481,37 @@ export default function WithdrawalsPage() {
                             <td className="py-4">{formatDate(order.created_at)}</td>
                             <td className="py-4">{order.card_count} items</td>
                             <td className="py-4">${order.amount_paid.toFixed(2)}</td>
+                            <td className="py-4">
+                              {(order as any).tracking_number ? (
+                                <a 
+                                  href={(order as any).tracking_url || '#'} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 underline"
+                                >
+                                  {(order as any).tracking_number}
+                                </a>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
                             <td className="py-4 text-right">
-                              <button 
-                                onClick={() => {
-                                  // TODO: Open order details modal
-                                  alert('Order details coming soon!')
-                                }}
-                                className="px-3 py-1 bg-[#3F3F5F] text-white rounded-lg hover:bg-[#4F4F6F] transition-colors text-sm"
-                              >
-                                View Details
-                              </button>
+                              <div className="flex space-x-2 justify-end">
+                                <button 
+                                  onClick={() => setShopOrderDetailsId(order.id)}
+                                  className="px-3 py-1 bg-[#3F3F5F] text-white rounded-lg hover:bg-[#4F4F6F] transition-colors text-sm"
+                                >
+                                  View Details
+                                </button>
+                                {order.status.toLowerCase() === 'authorized' && (
+                                  <button 
+                                    onClick={() => setCancelShopOrderId(order.id)}
+                                    className="px-3 py-1 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-colors text-sm"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         )
@@ -545,7 +598,14 @@ export default function WithdrawalsPage() {
         }}
       />
 
-      {/* Cancel Confirmation Modal */}
+      {/* Shop Order Details Modal */}
+      <ShopOrderDetailsModal
+        isOpen={!!shopOrderDetailsId}
+        onClose={() => setShopOrderDetailsId(null)}
+        orderId={shopOrderDetailsId || ''}
+      />
+
+      {/* Cancel Confirmation Modal - Card Withdrawals */}
       {cancelConfirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-[#1A1B2E] rounded-lg p-6 max-w-md w-full">
@@ -573,6 +633,41 @@ export default function WithdrawalsPage() {
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
               >
                 Yes, Cancel Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal - Shop Orders */}
+      {cancelShopOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-[#1A1B2E] rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-semibold text-white mb-4">
+              Cancel Shop Order
+            </h3>
+            <p className="text-gray-300 mb-6">
+              Are you sure you want to cancel this shop order? 
+              This will release the payment authorization (no charge) and restore stock.
+            </p>
+            <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-3 mb-6">
+              <p className="text-blue-400 text-sm">
+                <strong>Note:</strong> You can only cancel orders before they are confirmed and shipped. 
+                Once confirmed, orders cannot be cancelled.
+              </p>
+            </div>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setCancelShopOrderId(null)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Keep Order
+              </button>
+              <button
+                onClick={() => handleCancelShopOrder(cancelShopOrderId)}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Yes, Cancel Order
               </button>
             </div>
           </div>

@@ -378,24 +378,8 @@ export default function OfficialPacksPage() {
                     </div>
                     
                     
-                    {/* Price section with two rows */}
+                    {/* Price section */}
                     <div className="w-full py-3 text-white transition-all duration-300 border-t border-white/10">
-                      {/* Original Price Row */}
-                      {(pack.price === 600 || pack.price === 500 || pack.price === 400 || pack.price === 450) && (
-                        <div className="flex items-center justify-center gap-1 mb-1">
-                          <Image 
-                            src="/users/coin.png" 
-                            alt="Coin" 
-                            width={12} 
-                            height={12} 
-                          />
-                          <span className="font-bold text-[13px] text-red-300 line-through decoration-4 decoration-red-600 drop-shadow relative">
-                            {pack.price === 600 ? '700.00' : pack.price === 500 ? '600.00' : pack.price === 400 ? '500.00' : '550.00'}
-                            <div className="absolute inset-0 bg-red-600/20 -skew-x-12"></div>
-                          </span>
-                        </div>
-                      )}
-                      {/* Current Price Row */}
                       <div className="flex items-center justify-center gap-2">
                         <Image 
                           src="/users/coin.png" 
@@ -403,7 +387,7 @@ export default function OfficialPacksPage() {
                           width={16} 
                           height={16} 
                         />
-                        <span className="font-bold text-[16px] text-green-400 drop-shadow">{pack.price ? pack.price.toFixed(2) : 'Free'}</span>
+                        <span className="font-bold text-[16px] drop-shadow">{pack.price ? pack.price.toFixed(2) : 'Free'}</span>
                       </div>
                     </div>
                   </div>

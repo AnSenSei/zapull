@@ -3324,23 +3324,58 @@ async def pay_price_point(
                 })
 
             # d. Deduct locked_quantity from the seller's card
-            try:
-                # Parse card_reference to get card_id
-                card_id = card_reference.split('/')[-1]
+            # Parse card_reference to get card_id
+            card_id = card_reference.split('/')[-1]
 
-                # Get reference to the seller's card
-                seller_card_ref = seller_ref.collection('cards').document('cards').collection(collection_id).document(card_id)
+            # Get reference to the seller's card
+            seller_card_ref = seller_ref.collection('cards').document('cards').collection(collection_id).document(card_id)
 
-                # Update the card with decremented locked_quantity
-                # Since we can't read in a transaction after writes, we use Increment
+            # CRITICAL: Check if the seller's card exists BEFORE attempting to update it
+            # This prevents "No document to update" errors and data inconsistency
+            # Note: We're reading after writes which violates best practices, but it's necessary here
+            seller_card_doc = await seller_card_ref.get(transaction=tx)
+
+            if not seller_card_doc.exists:
+                # Seller's card doesn't exist - this is an orphaned listing (data inconsistency)
+                # Delete the listing and abort the transaction
+                logger.error(f"ORPHANED LISTING DETECTED: Seller's card {card_id} not found for seller {seller_id}, but listing {listing_id} exists. Deleting orphaned listing.")
+                
+                # Delete all point offers for this listing
+                for offer in point_offers:
+                    tx.delete(point_offers_ref.document(offer.id))
+                
+                # Delete all cash offers for this listing
+                for offer in cash_offers:
+                    tx.delete(cash_offers_ref.document(offer.id))
+                
+                # Delete the orphaned listing
+                tx.delete(listing_ref)
+                
+                # Raise an exception to abort the transaction and notify the buyer
+                raise HTTPException(
+                    status_code=404,
+                    detail="This listing is no longer available. The seller no longer has this card."
+                )
+            
+            # Card exists, proceed with normal update
+            seller_card_data = seller_card_doc.to_dict()
+            current_locked_quantity = seller_card_data.get('locked_quantity', 0)
+            current_card_quantity = seller_card_data.get('quantity', 0)
+
+            # Calculate new locked_quantity, ensure it doesn't go below zero
+            new_locked_quantity = max(0, current_locked_quantity - quantity)
+
+            # Check if both quantity and locked_quantity will be zero after this transaction
+            if current_card_quantity == 0 and new_locked_quantity == 0:
+                # Delete the card from the seller's collection as it's completely empty
+                tx.delete(seller_card_ref)
+                logger.info(f"Deleted card {card_id} from seller {seller_id}'s collection as both quantity and locked_quantity are zero")
+            else:
+                # Update the card with the new locked_quantity
                 tx.update(seller_card_ref, {
-                    'locked_quantity': firestore.Increment(-quantity)
+                    'locked_quantity': new_locked_quantity
                 })
-                logger.info(f"Decremented locked_quantity by {quantity} for card {card_id} in seller {seller_id}'s collection")
-            except Exception as e:
-                logger.error(f"Error updating seller's card: {e}", exc_info=True)
-                # Continue with the transaction even if updating the seller's card fails
-                # This ensures the main transaction still completes
+                logger.info(f"Updated locked_quantity for card {card_id} in seller {seller_id}'s collection to {new_locked_quantity}")
 
             # e. Create a marketplace transaction record
             transaction_ref = db_client.collection('marketplace_transactions').document(transaction_id)
@@ -4046,7 +4081,8 @@ async def get_official_listings(
                 pricePoints=price_points,
                 priceCash=price_cash,
                 quantity=card.get("quantity", 0),
-                rarity=card.get("rarity", 1)
+                rarity=card.get("rarity", 1),
+                type=card.get("type", "card")  # Default to 'card' if not specified
             )
             cards_response.append(card_info)
             

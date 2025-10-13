@@ -831,42 +831,6 @@
     min-height: calc(100vh - 100px);
   }
   
-  .drawnCardsContainer[data-card-count="5"] {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    grid-template-rows: repeat(3, 1fr) !important;
-    gap: 10px !important;
-    justify-items: center !important;
-    align-content: center !important;
-    padding: 10px 5px !important;
-  }
-  
-  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(1) {
-    grid-column: 1 / span 1;
-    grid-row: 1;
-  }
-  
-  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(2) {
-    grid-column: 2 / span 1;
-    grid-row: 1;
-  }
-  
-  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(3) {
-    grid-column: 1 / span 2;
-    grid-row: 2;
-    justify-self: center;
-  }
-  
-  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(4) {
-    grid-column: 1 / span 1;
-    grid-row: 3;
-  }
-  
-  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(5) {
-    grid-column: 2 / span 1;
-    grid-row: 3;
-  }
-  
   .drawnCard {
     width: 140px;
     height: 196px;
@@ -1110,19 +1074,24 @@
     justify-content: center;
   }
   
+  /* Draw 3 cards - small horizontal gap, minimal vertical gap */
   .drawnCardsContainer[data-card-count="3"] {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    gap: 10px;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    gap: 6px !important;
   }
   
+  /* Draw 5 cards - small horizontal gap, small vertical gap in 2-1-2 grid */
   .drawnCardsContainer[data-card-count="5"] {
     display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    grid-template-rows: repeat(3, 1fr) !important;
-    gap: 10px !important;
-    justify-items: center !important;
+    grid-template-columns: repeat(2, auto) !important;
+    grid-template-rows: repeat(3, auto) !important;
+    column-gap: 6px !important;
+    row-gap: 4px !important;
+    justify-items: stretch !important;
+    justify-content: center !important;
+    align-content: center !important;
     padding: 20px 10px !important;
   }
   
@@ -1215,6 +1184,17 @@
     padding: 10px 5px;
     gap: 8px;
     min-height: calc(100vh - 80px);
+  }
+  
+  /* Keep small horizontal, minimal vertical spacing for draw 3 and 5 */
+  .drawnCardsContainer[data-card-count="3"] {
+    gap: 4px !important;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] {
+    column-gap: 4px !important;
+    row-gap: 3px !important;
+    align-content: center !important;
   }
   
   .drawnCard {
@@ -1339,6 +1319,17 @@
     padding: 8px 5px !important;
     gap: 6px !important;
     min-height: calc(100vh - 70px) !important;
+  }
+  
+  /* Keep small horizontal, minimal vertical spacing for draw 3 and 5 */
+  .drawnCardsContainer[data-card-count="3"] {
+    gap: 4px !important;
+  }
+  
+  .drawnCardsContainer[data-card-count="5"] {
+    column-gap: 4px !important;
+    row-gap: 3px !important;
+    align-content: center !important;
   }
 
   /* 让弹窗内容在纵向可滚动，避免底部按钮或卡片被遮挡 */
@@ -1791,9 +1782,9 @@
   transform: scale(0.95);
 }
 
-/* 移除展开动画以改善用户体验 */
-
-/* 抽卡结果容器 */
+/* ========================================
+ * 抽卡结果容器 - Base Styles
+ * ======================================== */
 .drawnCardsContainer {
   display: flex;
   flex-wrap: wrap;
@@ -1807,69 +1798,79 @@
   box-sizing: border-box;
 }
 
-/* 根据卡牌数量调整布局 */
+/* Single card - always centered */
 .drawnCardsContainer[data-card-count="1"] {
   justify-content: center;
 }
 
-.drawnCardsContainer[data-card-count="3"] {
-  display: grid;
-  grid-template-columns: repeat(2, auto);
-  grid-template-rows: auto auto;
-  gap: 20px 20px;
-  justify-content: center;
-  align-items: center;
-}
+/* ========================================
+ * Desktop Layout (≥769px)
+ * ======================================== */
+@media (min-width: 769px) {
+  /* Draw 3 cards - 2 on top, 1 centered below */
+  .drawnCardsContainer[data-card-count="3"] {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    grid-template-rows: auto auto;
+    column-gap: 8px;
+    row-gap: 4px;
+    justify-content: center;
+    align-items: center;
+  }
 
-.drawnCardsContainer[data-card-count="3"] .drawnCard:nth-child(1) {
-  grid-column: 1 / span 1;
-  grid-row: 1;
-}
+  .drawnCardsContainer[data-card-count="3"] .drawnCard:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
 
-.drawnCardsContainer[data-card-count="3"] .drawnCard:nth-child(2) {
-  grid-column: 2 / span 1;
-  grid-row: 1;
-}
+  .drawnCardsContainer[data-card-count="3"] .drawnCard:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+  }
 
-.drawnCardsContainer[data-card-count="3"] .drawnCard:nth-child(3) {
-  grid-column: 1 / span 2;
-  grid-row: 2;
-  justify-self: center;
-}
+  .drawnCardsContainer[data-card-count="3"] .drawnCard:nth-child(3) {
+    grid-column: 1 / span 2;
+    grid-row: 2;
+    justify-self: center;
+  }
 
-.drawnCardsContainer[data-card-count="5"] {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 10px;
-  justify-items: center;
-  align-content: center;
-}
+  /* Draw 5 cards - 2-1-2 grid pattern */
+  .drawnCardsContainer[data-card-count="5"] {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    grid-template-rows: repeat(3, auto);
+    column-gap: 8px;
+    row-gap: 6px;
+    justify-items: stretch;
+    justify-content: center;
+    align-content: center;
+  }
 
-.drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(1) {
-  grid-column: 1 / span 1;
-  grid-row: 1;
-}
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
 
-.drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(2) {
-  grid-column: 2 / span 1;
-  grid-row: 1;
-}
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+  }
 
-.drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(3) {
-  grid-column: 1 / span 2;
-  grid-row: 2;
-  justify-self: center;
-}
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(3) {
+    grid-column: 1 / span 2;
+    grid-row: 2;
+    justify-self: center;
+  }
 
-.drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(4) {
-  grid-column: 1 / span 1;
-  grid-row: 3;
-}
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(4) {
+    grid-column: 1;
+    grid-row: 3;
+  }
 
-.drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(5) {
-  grid-column: 2 / span 1;
-  grid-row: 3;
+  .drawnCardsContainer[data-card-count="5"] .drawnCard:nth-child(5) {
+    grid-column: 2;
+    grid-row: 3;
+  }
 }
 
 .drawnCard {

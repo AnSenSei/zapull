@@ -328,7 +328,7 @@ async def get_all_shop_orders_with_cursor(
 ) -> AllWithdrawRequestsResponse:
     """
     Get all shop orders with cursor-based pagination.
-    This function retrieves shop orders from the card_shipping collection where purchase_type = 'official_shop'.
+    This function retrieves shop orders from the shop_orders collection.
 
     Args:
         db_client: Firestore client
@@ -344,11 +344,11 @@ async def get_all_shop_orders_with_cursor(
         HTTPException: If there's an error getting the shop orders
     """
     try:
-        # Get the card_shipping collection and filter by purchase_type
-        card_shipping_ref = db_client.collection('card_shipping')
+        # Get the shop_orders collection (separate from card_shipping)
+        shop_orders_ref = db_client.collection('shop_orders')
         
-        # Filter by purchase_type = 'official_shop'
-        query = card_shipping_ref.where('purchase_type', '==', 'official_shop')
+        # Start with base query
+        query = shop_orders_ref
 
         # Determine sort direction
         if sort_order.lower() == "desc":
@@ -366,7 +366,7 @@ async def get_all_shop_orders_with_cursor(
         if cursor:
             try:
                 # Get the document at the cursor
-                cursor_doc_ref = card_shipping_ref.document(cursor)
+                cursor_doc_ref = shop_orders_ref.document(cursor)
                 cursor_doc = await cursor_doc_ref.get()
 
                 if not cursor_doc.exists:
@@ -399,10 +399,14 @@ async def get_all_shop_orders_with_cursor(
         for order in shop_orders:
             order_data = order.to_dict()
 
+            # Shop orders use 'order_date' instead of 'request_date'
+            # Fall back to created_at if order_date is not available
+            request_date = order_data.get('order_date') or order_data.get('created_at')
+
             shop_order = WithdrawRequest(
                 id=order.id,
                 created_at=order_data.get('created_at'),
-                request_date=order_data.get('request_date'),
+                request_date=request_date,
                 status=order_data.get('status', 'pending'),
                 user_id=order_data.get('user_id'),
                 user_email=order_data.get('user_email', ''),
