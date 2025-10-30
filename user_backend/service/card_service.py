@@ -977,15 +977,27 @@ async def draw_multiple_cards_from_pack_optimized(
         await update_nonce(txn)
         logger.info(f"Updated nonce counter for user '{user_id}'")
 
-        # Provably fair random selection
+        # Provably fair random selection - generate individual seed per card
         server_seed = secrets.token_hex(32)
         server_seed_hash = hashlib.sha256(server_seed.encode()).hexdigest()
-        payload = f"{client_seed}{nonce}".encode()
-        random_hash = hmac.new(server_seed.encode(), payload, hashlib.sha256).hexdigest()
         
-        random.seed(int(random_hash, 16))
-        chosen_card_ids = random.choices(card_ids, weights=probabilities, k=count)
-        logger.info(f"Deterministically selected {count} cards from pack '{pack_id}' in collection '{collection_id}': {chosen_card_ids}")
+        chosen_card_ids = []
+        random_hashes = []
+        
+        # Draw each card with its own nonce for proper provably fair verification
+        for i in range(count):
+            current_nonce = nonce + i
+            payload = f"{client_seed}{current_nonce}".encode()
+            random_hash = hmac.new(server_seed.encode(), payload, hashlib.sha256).hexdigest()
+            random_hashes.append(random_hash)
+            
+            # Use a local Random instance to avoid affecting global random state
+            rng = random.Random(int(random_hash, 16))
+            chosen_card_id = rng.choices(card_ids, weights=probabilities, k=1)[0]
+            chosen_card_ids.append(chosen_card_id)
+            
+        nonce_end = nonce + count - 1
+        logger.info(f"Deterministically selected {count} cards from pack '{pack_id}' using nonces {nonce}-{nonce_end}: {chosen_card_ids}")
 
         # Insert SQL records (non-blocking)
         opening_id = None
@@ -994,14 +1006,20 @@ async def draw_multiple_cards_from_pack_optimized(
                 cursor = conn.cursor()
                 # Store the pack name (fallback to pack_id if missing) for pull history readability
                 pack_name = pack_data.get('name', pack_id)
+                
+                # Import json for JSONB storage
+                import json
+                
                 cursor.execute(
                     """
                     INSERT INTO pack_openings (user_id, pack_type, pack_count, price_points,
-                                               client_seed, nonce, server_seed_hash, server_seed, random_hash)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                                               client_seed, nonce, nonce_end, server_seed_hash, server_seed, 
+                                               random_hash, random_hashes)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
                     """,
                     (user_id, pack_name, count, total_price,
-                     client_seed, nonce, server_seed_hash, server_seed, random_hash)
+                     client_seed, nonce, nonce_end, server_seed_hash, server_seed, 
+                     random_hashes[0], json.dumps(random_hashes))  # Store first hash in random_hash for backward compat
                 )
                 opening_id = cursor.fetchone()[0]
                 
@@ -1411,14 +1429,18 @@ async def draw_multiple_cards_from_pack_optimized(
                 task_names = ['pack_popularity', 'weekly_spent', 'level_calculation', 'top_hits']
                 logger.error(f"Non-critical task {task_names[i]} failed: {result}")
 
-        # Prepare response
+        # Prepare response with detailed provably fair info
         provably_fair_info = {
             "server_seed_hash": server_seed_hash,
             "server_seed": server_seed,
             "client_seed": client_seed,
+            "nonce_start": nonce,
+            "nonce_end": nonce_end,
+            "random_hashes": random_hashes,  # Array of hashes, one per card
+            "opening_id": opening_id,
+            # Backward compatibility
             "nonce": nonce,
-            "random_hash": random_hash,
-            "opening_id": opening_id
+            "random_hash": random_hashes[0]
         }
 
         return {

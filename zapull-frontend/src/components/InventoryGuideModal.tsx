@@ -187,6 +187,7 @@ export default function InventoryGuideModal({ isOpen, onClose }: InventoryGuideM
                     <div>
                       <h4 className="font-medium text-white mb-2">Important Notes</h4>
                       <ul className="list-disc list-inside space-y-1 text-sm">
+                        <li><span className="text-yellow-400 font-semibold">Minimum requirement: Cards must have 200+ points to be withdrawn</span></li>
                         <li>Physical withdrawal is permanent - you cannot get digital copies back</li>
                         <li>Shipping costs and processing fees may apply</li>
                         <li>Processing time varies depending on location and card availability</li>

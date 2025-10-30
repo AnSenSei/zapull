@@ -110,3 +110,8 @@ export const updateShippingActiveStatus = async (
 ): Promise<any> => {
   return request.patch(`/shipping/withdraw-requests/${userId}/${requestId}/activate`, { is_active: isActive })
 }
+
+// 获取单个商店订单详情
+export const getShopOrderDetail = async (userId: string, orderId: string): Promise<{ data: ShippingInfo }> => {
+  return request.get(`/shipping/shop-orders/${userId}/${orderId}`)
+}

@@ -287,7 +287,7 @@ export default function AddHighlightModal({ isOpen, onClose, onSuccess }: AddHig
         {/* Content area - Mobile optimized with preview on top */}
         <div className="flex flex-col sm:flex-row h-[calc(100vh-80px)] sm:h-[calc(90vh-120px)] overflow-hidden">
           {/* Mobile: Preview at top, Desktop: Preview on left */}
-          <div className="w-full sm:w-1/2 sm:max-w-[460px] flex-shrink-0 h-[320px] sm:h-full p-3 sm:p-6 border-b sm:border-b-0 sm:border-r border-[#3F3F5F] flex flex-col items-center sm:items-stretch">
+          <div className="w-full sm:w-1/2 sm:max-w-[460px] flex-shrink-0 h-[320px] sm:h-full p-3 sm:p-6 border-b sm:border-b-0 sm:border-r border-[#3F3F5F] flex flex-col items-center sm:items-stretch overflow-y-auto">
             {/* Desktop header */}
             <div className="hidden sm:flex items-center mb-4">
               <div className="w-6 h-6 bg-[#8B5CF6] rounded-full flex items-center justify-center mr-3">

@@ -437,3 +437,139 @@ async def get_all_shop_orders_with_cursor(
         logger.error(f"Error getting all shop orders with cursor pagination: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get shop orders: {str(e)}")
 
+
+async def get_shop_order_by_id(order_id: str, user_id: str, db_client: AsyncClient) -> WithdrawRequestDetail:
+    """
+    Get a specific shop order by ID from the shop_orders collection.
+
+    Args:
+        order_id: The ID of the shop order to get
+        user_id: The ID of the user who made the shop order
+        db_client: Firestore client
+
+    Returns:
+        WithdrawRequestDetail object containing the shop order details
+
+    Raises:
+        HTTPException: If there's an error getting the shop order
+    """
+    try:
+        # Get the shop order from shop_orders collection
+        shop_order_ref = db_client.collection('shop_orders').document(order_id)
+        shop_order_doc = await shop_order_ref.get()
+
+        if not shop_order_doc.exists:
+            raise HTTPException(status_code=404, detail=f"Shop order with ID {order_id} not found")
+
+        # Get the shop order data
+        shop_order_data = shop_order_doc.to_dict()
+        
+        # Verify the user_id matches
+        if shop_order_data.get('user_id') != user_id:
+            raise HTTPException(status_code=404, detail=f"Shop order with ID {order_id} not found for user {user_id}")
+
+        # Shop orders typically don't have cards subcollection, but have cards array
+        items = shop_order_data.get('cards', [])
+        cards = []
+        
+        # Convert items to UserCard format if needed
+        for item in items:
+            card = UserCard(
+                id=item.get('card_id', ''),
+                card_reference=item.get('card_reference', ''),
+                card_name=item.get('card_name', ''),
+                image_url=item.get('image_url', ''),
+                rarity=item.get('rarity', 0),
+                quantity=item.get('quantity', 1),
+                point_worth=item.get('point_worth', 0),
+                locked_quantity=item.get('locked_quantity', 0)
+            )
+            cards.append(card)
+
+        # Create and return the WithdrawRequestDetail object
+        # Shop orders use 'order_date' instead of 'request_date'
+        request_date = shop_order_data.get('order_date') or shop_order_data.get('created_at')
+        
+        shop_order_detail = WithdrawRequestDetail(
+            id=shop_order_doc.id,
+            created_at=shop_order_data.get('created_at'),
+            request_date=request_date,
+            status=shop_order_data.get('status', 'pending'),
+            user_id=shop_order_data.get('user_id', user_id),
+            user_email=shop_order_data.get('user_email', ''),
+            card_count=shop_order_data.get('card_count', len(cards)),
+            cards=cards,
+            shipping_address=shop_order_data.get('shipping_address'),
+            shippo_address_id=shop_order_data.get('shippo_address_id'),
+            shippo_parcel_id=shop_order_data.get('shippo_parcel_id'),
+            shippo_shipment_id=shop_order_data.get('shippo_shipment_id'),
+            shippo_transaction_id=shop_order_data.get('shippo_transaction_id'),
+            shippo_label_url=shop_order_data.get('shippo_label_url'),
+            tracking_number=shop_order_data.get('tracking_number'),
+            tracking_url=shop_order_data.get('tracking_url'),
+            shipping_status=shop_order_data.get('shipping_status')
+        )
+
+        logger.info(f"Retrieved shop order {order_id} for user {user_id}")
+        return shop_order_detail
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting shop order {order_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get shop order: {str(e)}")
+
+
+async def update_shop_order_status(
+    user_id: str,
+    order_id: str,
+    status: str,
+    shipping_status: str,
+    db_client: AsyncClient
+) -> WithdrawRequestDetail:
+    """
+    Update the status of a shop order.
+
+    Args:
+        user_id: The ID of the user who made the shop order
+        order_id: The ID of the shop order to update
+        status: The new status for the shop order
+        shipping_status: The new shipping status for the shop order
+        db_client: Firestore client
+
+    Returns:
+        WithdrawRequestDetail object containing the updated shop order details
+
+    Raises:
+        HTTPException: If there's an error updating the shop order
+    """
+    try:
+        # Get the shop order from shop_orders collection
+        shop_order_ref = db_client.collection('shop_orders').document(order_id)
+        shop_order_doc = await shop_order_ref.get()
+
+        if not shop_order_doc.exists:
+            raise HTTPException(status_code=404, detail=f"Shop order with ID {order_id} not found")
+
+        # Get the shop order data
+        shop_order_data = shop_order_doc.to_dict()
+        
+        # Verify the user_id matches
+        if shop_order_data.get('user_id') != user_id:
+            raise HTTPException(status_code=404, detail=f"Shop order with ID {order_id} not found for user {user_id}")
+
+        # Update the shop order status
+        await shop_order_ref.update({
+            'status': status,
+            'shipping_status': shipping_status
+        })
+
+        logger.info(f"Updated shop order {order_id} for user {user_id} with status {status} and shipping_status {shipping_status}")
+
+        # Get the updated shop order
+        return await get_shop_order_by_id(order_id, user_id, db_client)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error updating shop order {order_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update shop order: {str(e)}")
+

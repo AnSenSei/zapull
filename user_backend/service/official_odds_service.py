@@ -192,10 +192,23 @@ async def draw_official_odds(
         purple_cards = pack_cards["purple"]
         orange_cards = pack_cards["orange"]
         
-        # Get pack price - we still need to check the pack document for price
+        # Get pack price and verify pack is active
         pack_ref = db_client.collection('packs').document('offcial').collection('offcial').document(pack_id)
         pack_snap = await pack_ref.get()
+        if not pack_snap.exists:
+            raise HTTPException(status_code=404, detail=f"Pack '{pack_id}' not found")
+        
         pack_data = pack_snap.to_dict()
+        
+        # Check if pack is active - only allow draws from active packs
+        is_active = pack_data.get('is_active', False)
+        if not is_active:
+            logger.warning(f"Attempted to draw from inactive pack {pack_id}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pack '{pack_id}' is not currently available for drawing"
+            )
+        
         pack_price = pack_data.get('price', 0)
         total_price = pack_price * count  # Multiply by number of packs
         
@@ -610,11 +623,34 @@ async def draw_official_odds(
                         
                         # Add expiration for low-value cards
                         point_worth = master_data.get("point_worth", 0)
-                        if point_worth <= 500 and not master_data.get("used_in_fusion"):
+                        low_value_and_not_material = point_worth <= 500 and not master_data.get("used_in_fusion")
+                        if low_value_and_not_material:
                             updates["expireAt"] = now + timedelta(days=settings.card_expire_days)
                             updates["isExpiring"] = True
                         
                         batch.update(ref_info['user_ref'], updates)
+
+                        # Also upsert expiring_cards tracking doc for official draws
+                        if low_value_and_not_material:
+                            try:
+                                exp_ref = db_client.collection('expiring_cards').document(f"{user_id}_{card_id}")
+                                exp_snap = await exp_ref.get()
+                                expires_at = now + timedelta(days=settings.card_expire_days)
+                                if exp_snap.exists:
+                                    batch.update(exp_ref, {
+                                        "quantity": firestore.Increment(quantity_to_add),
+                                        "expiresAt": expires_at
+                                    })
+                                else:
+                                    card_path = f"users/{user_id}/cards/cards/{collection_name}/{card_id}"
+                                    batch.set(exp_ref, {
+                                        "userId": user_id,
+                                        "cardReference": card_path,
+                                        "expiresAt": expires_at,
+                                        "quantity": quantity_to_add
+                                    })
+                            except Exception as exp_e:
+                                logger.warning(f"Failed to upsert expiring_cards for {user_id}_{card_id}: {exp_e}")
                     else:
                         # Create new card
                         user_card_data = {
@@ -633,11 +669,34 @@ async def draw_official_odds(
                         
                         # Add expiration for low-value cards
                         point_worth = master_data.get("point_worth", 0)
-                        if point_worth <= 500 and not master_data.get("used_in_fusion"):
+                        low_value_and_not_material = point_worth <= 500 and not master_data.get("used_in_fusion")
+                        if low_value_and_not_material:
                             user_card_data["expireAt"] = now + timedelta(days=settings.card_expire_days)
                             user_card_data["isExpiring"] = True
                         
                         batch.set(ref_info['user_ref'], user_card_data)
+
+                        # Also create expiring_cards tracking doc for official draws
+                        if low_value_and_not_material:
+                            try:
+                                exp_ref = db_client.collection('expiring_cards').document(f"{user_id}_{card_id}")
+                                exp_snap = await exp_ref.get()
+                                expires_at = now + timedelta(days=settings.card_expire_days)
+                                if exp_snap.exists:
+                                    batch.update(exp_ref, {
+                                        "quantity": firestore.Increment(quantity_to_add),
+                                        "expiresAt": expires_at
+                                    })
+                                else:
+                                    card_path = f"users/{user_id}/cards/cards/{collection_name}/{card_id}"
+                                    batch.set(exp_ref, {
+                                        "userId": user_id,
+                                        "cardReference": card_path,
+                                        "expiresAt": expires_at,
+                                        "quantity": quantity_to_add
+                                    })
+                            except Exception as exp_e:
+                                logger.warning(f"Failed to create expiring_cards for {user_id}_{card_id}: {exp_e}")
                     
                     logger.debug(f"Prepared batch operation for {quantity_to_add}x {card_id}")
                     
@@ -823,7 +882,20 @@ async def demo_draw_official_odds(
         # Get pack price for display (no deduction in demo)
         pack_ref = db_client.collection('packs').document('offcial').collection('offcial').document(pack_id)
         pack_snap = await pack_ref.get()
+        if not pack_snap.exists:
+            raise HTTPException(status_code=404, detail=f"Pack '{pack_id}' not found")
+        
         pack_data = pack_snap.to_dict()
+        
+        # Check if pack is active - even for demo, only show active packs
+        is_active = pack_data.get('is_active', False)
+        if not is_active:
+            logger.warning(f"Attempted demo draw from inactive pack {pack_id}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pack '{pack_id}' is not currently available for drawing"
+            )
+        
         pack_price = pack_data.get('price', 0)
         total_price = pack_price * count
         

@@ -262,6 +262,7 @@ import {
   getShippingList,
   getInactiveShippingList,
   getShippingDetail,
+  getShopOrderDetail,
   updateShippingStatus,
   updateShippingActiveStatus,
   type ShippingInfo,
@@ -351,7 +352,7 @@ const fetchShippingList = async (reset = true) => {
     let response
     
     if (effectiveType === 'shop') {
-      // 商店订单使用shop orders API - 转换为分页参数
+      // 商店订单使用shop orders API - 直接返回响应
       const shopParams = {
         page: 1,
         per_page: params.limit,
@@ -359,14 +360,7 @@ const fetchShippingList = async (reset = true) => {
         sort_order: params.sort_order,
         status: params.status
       }
-      const shopResponse = await getShopOrders(shopParams)
-      response = {
-        withdraw_requests: shopResponse.data.shipments,
-        pagination: {
-          next_cursor: null,
-          has_more: false
-        }
-      }
+      response = await getShopOrders(shopParams)
     } else if (activeStatus.value === 'inactive') {
       response = await getInactiveShippingList(params)
     } else {
@@ -478,7 +472,15 @@ const handleView = async (row: ShippingInfo) => {
   viewDialogVisible.value = true
   viewLoading.value = true
   try {
-    const response = await getShippingDetail(row.user_id, row.id)
+    // Check if this is a shop order by checking the activeTab or searching for 'order_' prefix in ID
+    const isShopOrder = activeTab.value === 'shop' || row.id.startsWith('order_')
+    
+    let response
+    if (isShopOrder) {
+      response = await getShopOrderDetail(row.user_id, row.id)
+    } else {
+      response = await getShippingDetail(row.user_id, row.id)
+    }
     currentViewShipment.value = response
   } catch (error) {
     console.error('获取物流详情失败：', error)

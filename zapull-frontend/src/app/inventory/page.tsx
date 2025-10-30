@@ -433,12 +433,18 @@ export default function InventoryPage() {
     }
   }, [selectedCards, cards])
 
+  // Handle card selection - cards can be selected regardless of point value
+  // Withdraw button will be disabled separately if minimum not met
+  const handleCardSelectionWithValidation = (card: UserCard) => {
+    handleCardSelect(card.id)
+  }
+
   // 处理卡片点击 - 打开详情弹窗
   const handleCardClick = (card: UserCard, event: React.MouseEvent) => {
     // 如果点击的是选择框区域，则执行选择逻辑
     const target = event.target as HTMLElement
     if (target.closest('.card-select-area')) {
-      handleCardSelect(card.id)
+      handleCardSelectionWithValidation(card)
       return
     }
     
@@ -821,23 +827,54 @@ export default function InventoryPage() {
               disabled={loading || cards.length === 0}
             />
             
-            <button 
-              onClick={handleWithdraw}
-              disabled={selectedCards.length === 0 || loading}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                selectedCards.length > 0 && !loading
-                  ? 'bg-[#8868FF] hover:bg-[#7759EE] text-white cursor-pointer' 
-                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              <img src="/users/card-icon.png" alt="Withdraw" className="w-4 h-4" />
-              <span className="text-sm">
-                {selectedCards.length > 0 
-                  ? `Withdraw (${selectedCards.length})` 
-                  : 'Withdraw'
-                }
-              </span>
-            </button>
+            {(() => {
+              const selectedCardData = Array.from(selectedCardsData.values())
+              const hasLowValueCards = selectedCardData.some(card => 
+                (card.point_worth || 0) < 200
+              );
+              const canWithdraw = selectedCards.length > 0 && !hasLowValueCards && !loading;
+              const tooltipText = hasLowValueCards 
+                ? "Can't withdraw cards below 200 points" 
+                : selectedCards.length === 0 
+                ? 'Please select cards to withdraw' 
+                : '';
+              
+              return (
+                <div className="relative group">
+                  <button 
+                    onClick={() => {
+                      if (canWithdraw) {
+                        handleWithdraw()
+                      } else if (hasLowValueCards) {
+                        toast.error("Can't withdraw cards below 200 points")
+                      } else if (selectedCards.length === 0) {
+                        toast.error('Please select cards to withdraw')
+                      }
+                    }}
+                    disabled={!canWithdraw}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                      canWithdraw
+                        ? 'bg-[#8868FF] hover:bg-[#7759EE] text-white cursor-pointer' 
+                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <img src="/users/card-icon.png" alt="Withdraw" className="w-4 h-4" />
+                    <span className="text-sm">
+                      {selectedCards.length > 0 
+                        ? `Withdraw (${selectedCards.length})` 
+                        : 'Withdraw'
+                      }
+                    </span>
+                  </button>
+                  {!canWithdraw && tooltipText && (
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+                      {tooltipText}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             {(() => {
               const selectedCardData = Array.from(selectedCardsData.values())
               const hasExpiredCards = selectedCardData.some(card => 
@@ -1025,23 +1062,54 @@ export default function InventoryPage() {
 
           {/* Action Buttons Row */}
           <div className="flex space-x-2">
-            <button 
-              onClick={handleWithdraw}
-              disabled={selectedCards.length === 0 || loading}
-              className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                selectedCards.length > 0 && !loading
-                  ? 'bg-[#8868FF] hover:bg-[#7759EE] text-white cursor-pointer' 
-                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              <img src="/users/card-icon.png" alt="Withdraw" className="w-4 h-4" />
-              <span className="text-xs">
-                {selectedCards.length > 0 
-                  ? `Withdraw (${selectedCards.length})` 
-                  : 'Withdraw'
-                }
-              </span>
-            </button>
+            {(() => {
+              const selectedCardData = Array.from(selectedCardsData.values())
+              const hasLowValueCards = selectedCardData.some(card => 
+                (card.point_worth || 0) < 200
+              );
+              const canWithdraw = selectedCards.length > 0 && !hasLowValueCards && !loading;
+              const tooltipText = hasLowValueCards 
+                ? "Can't withdraw cards below 200 points" 
+                : selectedCards.length === 0 
+                ? 'Please select cards to withdraw' 
+                : '';
+              
+              return (
+                <div className="relative group flex-1">
+                  <button 
+                    onClick={() => {
+                      if (canWithdraw) {
+                        handleWithdraw()
+                      } else if (hasLowValueCards) {
+                        toast.error("Can't withdraw cards below 200 points")
+                      } else if (selectedCards.length === 0) {
+                        toast.error('Please select cards to withdraw')
+                      }
+                    }}
+                    disabled={!canWithdraw}
+                    className={`w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                      canWithdraw
+                        ? 'bg-[#8868FF] hover:bg-[#7759EE] text-white cursor-pointer' 
+                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <img src="/users/card-icon.png" alt="Withdraw" className="w-4 h-4" />
+                    <span className="text-xs">
+                      {selectedCards.length > 0 
+                        ? `Withdraw (${selectedCards.length})` 
+                        : 'Withdraw'
+                      }
+                    </span>
+                  </button>
+                  {!canWithdraw && tooltipText && (
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
+                      {tooltipText}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             {(() => {
               const selectedCardData = Array.from(selectedCardsData.values())
               const hasExpiredCards = selectedCardData.some(card => 
@@ -1133,6 +1201,7 @@ export default function InventoryPage() {
               }
               
               const expired = isExpired(card.buybackexpiresAt)
+              const canWithdraw = (card.point_worth || 0) >= 200
               
               return (
                 <motion.div
@@ -1157,13 +1226,19 @@ export default function InventoryPage() {
                   <div className="aspect-[3/4] bg-gradient-to-br from-blue-900 to-purple-900 relative">
                     <div className="absolute top-1 left-1 z-10 card-select-area p-1" onClick={(e) => e.stopPropagation()}>
                       {selectedCards.includes(card.id) ? (
-                        <div className="w-6 h-6 md:w-5 md:h-5 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg" onClick={() => handleCardSelect(card.id)}>
+                        <div 
+                          className="w-6 h-6 md:w-5 md:h-5 rounded-full flex items-center justify-center shadow-lg bg-blue-500 cursor-pointer"
+                          onClick={() => handleCardSelect(card.id)}
+                        >
                           <svg className="w-4 h-4 md:w-3 md:h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         </div>
                       ) : (
-                        <div className="w-6 h-6 md:w-5 md:h-5 border-2 border-white/80 rounded-full bg-gray-800/60 cursor-pointer shadow-lg hover:bg-gray-700/80 transition-colors" onClick={() => handleCardSelect(card.id)} />
+                        <div 
+                          className="w-6 h-6 md:w-5 md:h-5 border-2 rounded-full shadow-lg transition-colors border-white/80 bg-gray-800/60 cursor-pointer hover:bg-gray-700/80"
+                          onClick={() => handleCardSelect(card.id)}
+                        />
                       )}
                     </div>
                     

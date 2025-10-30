@@ -1411,11 +1411,48 @@ async def get_listing_by_id(
         listing_data = listing_doc.to_dict()
         listing_data['id'] = listing_doc.id  # Add the document ID to the data
 
-        # 3. Generate signed URL for the card image if it exists
+        # 3. Verify the seller still has the card (check for orphaned listing)
+        owner_reference = listing_data.get("owner_reference", "")
+        if owner_reference:
+            seller_id = owner_reference.split('/')[-1] if "/" in owner_reference else owner_reference
+            card_reference = listing_data.get("card_reference", "")
+            collection_id = listing_data.get("collection_id", "")
+            
+            if seller_id and card_reference and collection_id:
+                card_id = card_reference.split('/')[-1]
+                seller_card_ref = db_client.collection(settings.firestore_collection_users).document(seller_id).collection('cards').document('cards').collection(collection_id).document(card_id)
+                seller_card_doc = await seller_card_ref.get()
+                
+                if not seller_card_doc.exists:
+                    # Orphaned listing - delete it
+                    logger.warning(f"Orphaned listing detected: {listing_id}. Seller {seller_id} no longer has card {card_id}. Deleting listing.")
+                    
+                    # Delete all offers and the listing
+                    @firestore.async_transactional
+                    async def _cleanup_orphaned_listing(tx: firestore.AsyncTransaction):
+                        # Delete point offers
+                        point_offers = await listing_ref.collection('point_offers').get()
+                        for offer in point_offers:
+                            tx.delete(listing_ref.collection('point_offers').document(offer.id))
+                        
+                        # Delete cash offers
+                        cash_offers = await listing_ref.collection('cash_offers').get()
+                        for offer in cash_offers:
+                            tx.delete(listing_ref.collection('cash_offers').document(offer.id))
+                        
+                        # Delete the listing
+                        tx.delete(listing_ref)
+                    
+                    transaction = db_client.transaction()
+                    await _cleanup_orphaned_listing(transaction)
+                    
+                    raise HTTPException(status_code=404, detail="This listing is no longer available.")
+
+        # 4. Generate signed URL for the card image if it exists
         # R2 URLs are public, no need to sign them
         # image_url is already public and accessible
 
-        # 4. Check if listing has any offers
+        # 5. Check if listing has any offers
         has_offer = listing_data.get("has_offer", False)
         
         # If has_offer is not set in the document, check subcollections
@@ -1430,7 +1467,7 @@ async def get_listing_by_id(
                 if cash_offers:
                     has_offer = True
 
-        # 5. Create and return a CardListing object
+        # 6. Create and return a CardListing object
         listing = CardListing(
             id=listing_data["id"],  # Include the listing ID
             owner_reference=listing_data["owner_reference"],
@@ -3273,7 +3310,9 @@ async def pay_price_point(
         # 12. Execute the transaction
         @firestore.async_transactional
         async def _txn(tx: firestore.AsyncTransaction):
-            # Check user's points balance inside the transaction
+            # IMPORTANT: All reads must happen BEFORE any writes in Firestore transactions
+            
+            # Read 1: Check user's points balance
             user_doc_tx = await user_ref.get(transaction=tx)
             if not user_doc_tx.exists:
                 raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
@@ -3284,6 +3323,43 @@ async def pay_price_point(
             if user_points_tx < total_points_to_pay:
                 raise HTTPException(status_code=400, detail=f"Insufficient points. You have {user_points_tx} points, but {total_points_to_pay} are required.")
             
+            # Read 2: Check if the seller's card exists (must be before any writes)
+            card_id = card_reference.split('/')[-1]
+            seller_ref = db_client.collection(settings.firestore_collection_users).document(seller_id)
+            seller_card_ref = seller_ref.collection('cards').document('cards').collection(collection_id).document(card_id)
+            seller_card_doc = await seller_card_ref.get(transaction=tx)
+            
+            if not seller_card_doc.exists:
+                # Seller's card doesn't exist - this is an orphaned listing
+                logger.error(f"ORPHANED LISTING DETECTED: Seller's card {card_id} not found for seller {seller_id}, but listing {listing_id} exists. Deleting orphaned listing.")
+                
+                # Delete all point offers for this listing
+                for offer in point_offers:
+                    tx.delete(point_offers_ref.document(offer.id))
+                
+                # Delete all cash offers for this listing
+                for offer in cash_offers:
+                    tx.delete(cash_offers_ref.document(offer.id))
+                
+                # Delete the orphaned listing
+                tx.delete(listing_ref)
+                
+                # Raise an exception to abort the transaction and notify the buyer
+                raise HTTPException(
+                    status_code=404,
+                    detail="This listing is no longer available. The seller no longer has this card."
+                )
+            
+            # Card exists, get its current state
+            seller_card_data = seller_card_doc.to_dict()
+            current_locked_quantity = seller_card_data.get('locked_quantity', 0)
+            current_card_quantity = seller_card_data.get('quantity', 0)
+            
+            # Calculate new locked_quantity, ensure it doesn't go below zero
+            new_locked_quantity = max(0, current_locked_quantity - quantity)
+            
+            # ALL READS COMPLETE - Now perform writes
+            
             # a. Deduct points from the user and increment buy_deal
             tx.update(user_ref, {
                 "pointsBalance": firestore.Increment(-total_points_to_pay),
@@ -3292,12 +3368,9 @@ async def pay_price_point(
 
             # b. Add points to the seller after deducting 7% platform fee and increment sell_deal
             # Platform fee is 7%, so seller receives 93%
-            
-            # Debug logging
             logger.info(f"Debug pay_price_point - seller_id: '{seller_id}', type: {type(seller_id)}")
             logger.info(f"Debug pay_price_point - firestore_collection_users: '{settings.firestore_collection_users}', type: {type(settings.firestore_collection_users)}")
             
-            seller_ref = db_client.collection(settings.firestore_collection_users).document(seller_id)
             tx.update(seller_ref, {
                 "pointsBalance": firestore.Increment(seller_points_to_receive),
                 "sell_deal": firestore.Increment(1)
@@ -3324,46 +3397,6 @@ async def pay_price_point(
                 })
 
             # d. Deduct locked_quantity from the seller's card
-            # Parse card_reference to get card_id
-            card_id = card_reference.split('/')[-1]
-
-            # Get reference to the seller's card
-            seller_card_ref = seller_ref.collection('cards').document('cards').collection(collection_id).document(card_id)
-
-            # CRITICAL: Check if the seller's card exists BEFORE attempting to update it
-            # This prevents "No document to update" errors and data inconsistency
-            # Note: We're reading after writes which violates best practices, but it's necessary here
-            seller_card_doc = await seller_card_ref.get(transaction=tx)
-
-            if not seller_card_doc.exists:
-                # Seller's card doesn't exist - this is an orphaned listing (data inconsistency)
-                # Delete the listing and abort the transaction
-                logger.error(f"ORPHANED LISTING DETECTED: Seller's card {card_id} not found for seller {seller_id}, but listing {listing_id} exists. Deleting orphaned listing.")
-                
-                # Delete all point offers for this listing
-                for offer in point_offers:
-                    tx.delete(point_offers_ref.document(offer.id))
-                
-                # Delete all cash offers for this listing
-                for offer in cash_offers:
-                    tx.delete(cash_offers_ref.document(offer.id))
-                
-                # Delete the orphaned listing
-                tx.delete(listing_ref)
-                
-                # Raise an exception to abort the transaction and notify the buyer
-                raise HTTPException(
-                    status_code=404,
-                    detail="This listing is no longer available. The seller no longer has this card."
-                )
-            
-            # Card exists, proceed with normal update
-            seller_card_data = seller_card_doc.to_dict()
-            current_locked_quantity = seller_card_data.get('locked_quantity', 0)
-            current_card_quantity = seller_card_data.get('quantity', 0)
-
-            # Calculate new locked_quantity, ensure it doesn't go below zero
-            new_locked_quantity = max(0, current_locked_quantity - quantity)
 
             # Check if both quantity and locked_quantity will be zero after this transaction
             if current_card_quantity == 0 and new_locked_quantity == 0:

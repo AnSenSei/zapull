@@ -228,10 +228,10 @@ export default function CardDetailModal({ card, isOpen, onClose, channel = 'play
           onPurchase('points', card)
         }
         
-        // Refresh user data to update points balance
-        await refreshUserData()
-        // Refresh page after closing
-        setTimeout(() => { if (typeof window !== 'undefined') window.location.reload() }, 300)
+          // Refresh user data to update points balance
+          await refreshUserData()
+          // Immediate page refresh - no timeout
+          if (typeof window !== 'undefined') window.location.reload()
       } else {
         // Player channel: buy with points from user listing
         if (!listingId) {
@@ -247,10 +247,10 @@ export default function CardDetailModal({ card, isOpen, onClose, channel = 'play
             onPurchase('points', card)
           }
           
-          // Refresh user data to update points balance
-          await refreshUserData()
-          // Refresh page after closing modal
-          setTimeout(() => { if (typeof window !== 'undefined') window.location.reload() }, 300)
+        // Refresh user data to update points balance
+        await refreshUserData()
+        // Immediate page refresh - no timeout
+        if (typeof window !== 'undefined') window.location.reload()
         } else {
           toast.error(result.message || 'Purchase failed')
         }
@@ -280,6 +280,18 @@ export default function CardDetailModal({ card, isOpen, onClose, channel = 'play
           return
         } catch {}
       }
+      
+      // Check if this is an orphaned listing error
+      if (errorMessage.includes('no longer available') || errorMessage.includes('seller no longer has this card')) {
+        // Close the modal since the listing is gone
+        onClose()
+        // Show error toast and refresh to update listing display
+        toast.error(errorMessage)
+        // Refresh page to remove the invalid listing from view
+        setTimeout(() => { if (typeof window !== 'undefined') window.location.reload() }, 1500)
+        return
+      }
+      
       // Show specific error message
       toast.error(errorMessage)
     } finally {
@@ -340,12 +352,13 @@ export default function CardDetailModal({ card, isOpen, onClose, channel = 'play
     await refreshUserData()
     
     onClose()
-    // Navigate back to marketplace page if not already there
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/marketplace')) {
-      window.location.href = '/marketplace'
-    } else {
-      // Refresh page to update listings and balances
-      setTimeout(() => { if (typeof window !== 'undefined') window.location.reload() }, 300)
+    // Immediate page refresh - no timeout
+    if (typeof window !== 'undefined') {
+      if (!window.location.pathname.includes('/marketplace')) {
+        window.location.href = '/marketplace'
+      } else {
+        window.location.reload()
+      }
     }
   }
   

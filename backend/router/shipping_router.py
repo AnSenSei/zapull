@@ -149,3 +149,69 @@ async def get_all_shop_orders_route(
     except Exception as e:
         logger.error(f"Error getting all shop orders with cursor pagination: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while retrieving shop orders")
+
+
+@router.get("/shop-orders/{user_id}/{order_id}", response_model=WithdrawRequestDetail)
+async def get_shop_order_detail_route(
+    user_id: str = Path(..., description="The ID of the user who made the shop order"),
+    order_id: str = Path(..., description="The ID of the shop order to retrieve"),
+    db: firestore.AsyncClient = Depends(get_firestore_client)
+):
+    """
+    Get detailed information about a specific shop order.
+    
+    This endpoint:
+    1. Retrieves the shop order details from the shop_orders collection
+    2. Returns complete shop order information including items
+    """
+    try:
+        from service.shipping_service import get_shop_order_by_id
+        
+        shop_order = await get_shop_order_by_id(
+            order_id=order_id,
+            user_id=user_id,
+            db_client=db
+        )
+        return shop_order
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting shop order {order_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while retrieving the shop order")
+
+
+@router.put("/shop-orders/{user_id}/{order_id}/status", response_model=WithdrawRequestDetail)
+async def update_shop_order_status_route(
+    user_id: str = Path(..., description="The ID of the user who made the shop order"),
+    order_id: str = Path(..., description="The ID of the shop order to update"),
+    request: UpdateWithdrawRequestStatusRequest = Body(..., description="Request body containing new status values"),
+    db: firestore.AsyncClient = Depends(get_firestore_client)
+):
+    """
+    Update the status of a shop order.
+
+    This endpoint:
+    1. Takes a user ID and order ID as path parameters
+    2. Takes a request body with new status and shipping_status values
+    3. Updates the status and shipping_status in the shop order document
+    4. Returns the updated shop order details
+
+    The status field represents the overall status of the order (e.g., 'pending', 'processing', 'completed').
+    The shipping_status field represents the status of the shipment (e.g., 'label_created', 'shipped', 'delivered').
+    """
+    try:
+        from service.shipping_service import update_shop_order_status
+        
+        updated_shop_order = await update_shop_order_status(
+            user_id=user_id,
+            order_id=order_id,
+            status=request.status,
+            shipping_status=request.shipping_status,
+            db_client=db
+        )
+        return updated_shop_order
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating shop order {order_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while updating the shop order status")

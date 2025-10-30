@@ -15,7 +15,7 @@ PROJECT_ID = os.environ.get('PROJECT_ID', 'seventh-program-433718-h8')
 db = firestore.Client(project=PROJECT_ID)
 
 
-async def get_collection_metadata(collection_name: str) -> dict:
+def get_collection_metadata(collection_name: str) -> dict:
     """
     Retrieves metadata for a specific collection from the metadata collection in Firestore.
     
@@ -77,6 +77,15 @@ def destroy_card_locally(user_id: str, card_id: str, subcollection_name: str, qu
         
         if not card_doc.exists:
             logger.warning(f"Card {card_id} not found in subcollection {subcollection_name} for user {user_id}")
+            # Clean up stale expiring_cards document so it won't keep failing next runs
+            try:
+                stale_expiring_ref = db.collection('expiring_cards').document(f"{user_id}_{card_id}")
+                stale_expiring_doc = stale_expiring_ref.get()
+                if stale_expiring_doc.exists:
+                    stale_expiring_ref.delete()
+                    logger.info(f"Deleted stale expiring_cards record {user_id}_{card_id}")
+            except Exception as cleanup_err:
+                logger.error(f"Failed to delete stale expiring_cards record {user_id}_{card_id}: {cleanup_err}")
             return False
         
         card_data = card_doc.to_dict()
@@ -121,13 +130,9 @@ def destroy_card_locally(user_id: str, card_id: str, subcollection_name: str, qu
                 main_card_doc = main_card_ref.get()
                 main_card_exists = main_card_doc.exists
         
-        # 6. Check if card exists in expiring_cards collection
-        expiring_card_ref = None
-        expiring_card_exists = False
-        if point_worth < 1000:
-            expiring_card_ref = db.collection('expiring_cards').document(f"{user_id}_{card_id}")
-            expiring_card_doc = expiring_card_ref.get()
-            expiring_card_exists = expiring_card_doc.exists
+        # 6. Check if expiring_cards record exists (do not gate by point_worth; clean consistently)
+        expiring_card_ref = db.collection('expiring_cards').document(f"{user_id}_{card_id}")
+        expiring_card_exists = expiring_card_ref.get().exists
         
         # 7. Execute transaction with all updates
         @firestore.transactional
@@ -173,7 +178,7 @@ def cleanup_expired_cards():
     """扫描过期卡片并销毁它们"""
     logger.info("开始清理过期卡片")
     
-    current_time = datetime.now()
+    current_time = datetime.utcnow()
     stats = {'scanned': 0, 'destroyed': 0, 'errors': 0}
     
     try:

@@ -430,15 +430,28 @@ export default function InventoryCardDetailModal({
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                <button
-                  onClick={() => {
-                    onClose()
-                    onSell?.(card)
-                  }}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 sm:py-3 px-4 rounded-lg text-sm sm:text-base transition-colors"
-                >
-                  List for Sale
-                </button>
+                {(() => {
+                  const canWithdraw = (card.point_worth || 0) >= 200;
+                  return (
+                    <button
+                      onClick={() => {
+                        if (canWithdraw) {
+                          onClose()
+                          onSell?.(card)
+                        }
+                      }}
+                      disabled={!canWithdraw}
+                      className={`flex-1 font-bold py-2 sm:py-3 px-4 rounded-lg text-sm sm:text-base transition-colors ${
+                        canWithdraw 
+                          ? 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer'
+                          : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                      }`}
+                      title={!canWithdraw ? `Cards with value less than 200 points cannot be withdrawn (current: ${card.point_worth?.toFixed(2) || '0.00'})` : ''}
+                    >
+                      List for Sale
+                    </button>
+                  );
+                })()}
                 
                 {(() => {
                   const isExpired = new Date(card.buybackexpiresAt).getTime() <= new Date().getTime();

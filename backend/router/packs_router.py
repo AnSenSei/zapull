@@ -220,6 +220,7 @@ async def add_pack_route(
         win_rate = form_data.get('win_rate')
         max_win = form_data.get('max_win')
         popularity = form_data.get('popularity')
+        pack_type = form_data.get('type')  # Pack type: CN, JP, or US
         image_file = form_data.get('image_file')  # Base64 encoded image string
         file = form_data.get('file')  # Direct file upload
         
@@ -277,7 +278,8 @@ async def add_pack_route(
             win_rate=win_rate,
             max_win=max_win,
             is_active=False,
-            popularity=popularity
+            popularity=popularity,
+            type=pack_type if pack_type else "US"  # Default to US if not provided
         )
 
         pack_id = await create_pack_in_firestore(pack_request_model, db, storage_client, image_file, file)

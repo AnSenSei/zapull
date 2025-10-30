@@ -8,7 +8,7 @@ class UserCard(BaseModel):
     """Model for a card in a user's collection"""
     card_reference: str  # Reference to the original card
     card_name: str
-    date_got: datetime
+    date_got: Optional[datetime] = None
     id: str
     image_url: str
     point_worth: int
@@ -157,7 +157,7 @@ class UserCard(BaseModel):
     """Model for a card in a user's collection"""
     card_reference: str  # Reference to the original card
     card_name: str
-    date_got: datetime
+    date_got: Optional[datetime] = None
     id: str
     image_url: str
     point_worth: int
