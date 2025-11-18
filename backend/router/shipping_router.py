@@ -19,6 +19,8 @@ async def get_all_withdraw_requests_with_cursor_route(
     cursor: Optional[str] = Query(None, description="Cursor for pagination (optional)"),
     sort_by: str = Query("created_at", description="Field to sort by (default: created_at)"),
     sort_order: str = Query("desc", description="Sort order (asc or desc, default: desc)"),
+    status: Optional[str] = Query(None, description="Filter by status (optional)"),
+    card_status: Optional[str] = Query(None, description="Filter by card status (optional)"),
     db: firestore.AsyncClient = Depends(get_firestore_client)
 ):
     """
@@ -39,7 +41,9 @@ async def get_all_withdraw_requests_with_cursor_route(
             limit=limit,
             cursor=cursor,
             sort_by=sort_by,
-            sort_order=sort_order
+            sort_order=sort_order,
+            status=status,
+            card_status=card_status
         )
         return withdraw_requests_response
     except HTTPException:
@@ -73,7 +77,7 @@ async def update_withdraw_request_status_route(
             user_id=user_id,
             request_id=request_id,
             status=request.status,
-            shipping_status=request.shipping_status,
+            card_status=request.card_status,
             db_client=db
         )
         return updated_withdraw_request
@@ -119,6 +123,8 @@ async def get_all_shop_orders_route(
     cursor: Optional[str] = Query(None, description="Cursor for pagination (optional)"),
     sort_by: str = Query("created_at", description="Field to sort by (default: created_at)"),
     sort_order: str = Query("desc", description="Sort order (asc or desc, default: desc)"),
+    status: Optional[str] = Query(None, description="Filter by status (optional)"),
+    card_status: Optional[str] = Query(None, description="Filter by card status (optional)"),
     db: firestore.AsyncClient = Depends(get_firestore_client)
 ):
     """
@@ -141,7 +147,9 @@ async def get_all_shop_orders_route(
             limit=limit,
             cursor=cursor,
             sort_by=sort_by,
-            sort_order=sort_order
+            sort_order=sort_order,
+            status=status,
+            card_status=card_status
         )
         return shop_orders_response
     except HTTPException:
@@ -206,7 +214,7 @@ async def update_shop_order_status_route(
             user_id=user_id,
             order_id=order_id,
             status=request.status,
-            shipping_status=request.shipping_status,
+            card_status=request.card_status,
             db_client=db
         )
         return updated_shop_order

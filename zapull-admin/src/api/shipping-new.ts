@@ -44,6 +44,7 @@ export interface ShippingInfo {
   tracking_number: string
   tracking_url: string
   shipping_status: string
+  card_status?: string
   is_active: boolean
   cards: ShippingCard[]
 }
@@ -90,7 +91,7 @@ export const getShippingDetail = async (userId: string, requestId: string): Prom
 // 修改物流状态
 export interface UpdateShippingStatusParams {
   status: string
-  shipping_status: string
+  card_status?: string
   tracking_number?: string
 }
 
@@ -114,4 +115,13 @@ export const updateShippingActiveStatus = async (
 // 获取单个商店订单详情
 export const getShopOrderDetail = async (userId: string, orderId: string): Promise<{ data: ShippingInfo }> => {
   return request.get(`/shipping/shop-orders/${userId}/${orderId}`)
+}
+
+// 更新商店订单状态
+export const updateShopOrderStatus = async (
+  userId: string, 
+  orderId: string, 
+  params: UpdateShippingStatusParams
+): Promise<any> => {
+  return request.put(`/shipping/shop-orders/${userId}/${orderId}/status`, params)
 }

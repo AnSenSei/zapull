@@ -129,7 +129,8 @@ async def get_withdraw_request_by_id(request_id: str, user_id: str, db_client: A
             shippo_label_url=withdraw_request_data.get('shippo_label_url'),
             tracking_number=withdraw_request_data.get('tracking_number'),
             tracking_url=withdraw_request_data.get('tracking_url'),
-            shipping_status=withdraw_request_data.get('shipping_status')
+            shipping_status=withdraw_request_data.get('shipping_status'),
+            card_status=withdraw_request_data.get('card_status')
         )
 
         logger.info(f"Retrieved withdraw request {request_id} for user {user_id} with {len(cards)} cards")
@@ -145,8 +146,8 @@ async def update_withdraw_request_status(
     user_id: str,
     request_id: str,
     status: str,
-    shipping_status: str,
-    db_client: AsyncClient
+    card_status: Optional[str] = None,
+    db_client: AsyncClient = None
 ) -> WithdrawRequestDetail:
     """
     Update the status of a withdraw request and its corresponding card_shipping document.
@@ -155,7 +156,7 @@ async def update_withdraw_request_status(
         user_id: The ID of the user who made the withdraw request
         request_id: The ID of the withdraw request to update
         status: The new status for the withdraw request
-        shipping_status: The new shipping status for the withdraw request
+        card_status: The new card status for the withdraw request (optional)
         db_client: Firestore client
 
     Returns:
@@ -180,21 +181,19 @@ async def update_withdraw_request_status(
             raise HTTPException(status_code=404, detail=f"Withdraw request with ID {request_id} not found for user {user_id}")
 
         # Update the withdraw request status
-        await withdraw_request_ref.update({
-            'status': status,
-            'shipping_status': shipping_status
-        })
+        update_data = {'status': status}
+        if card_status is not None:
+            update_data['card_status'] = card_status
+        
+        await withdraw_request_ref.update(update_data)
 
         # Update the card_shipping document with the same status
         card_shipping_ref = db_client.collection('card_shipping').document(request_id)
         card_shipping_doc = await card_shipping_ref.get()
 
         if card_shipping_doc.exists:
-            await card_shipping_ref.update({
-                'status': status,
-                'shipping_status': shipping_status
-            })
-            logger.info(f"Updated card_shipping document {request_id} with status {status} and shipping_status {shipping_status}")
+            await card_shipping_ref.update(update_data)
+            logger.info(f"Updated card_shipping document {request_id} with status {status}" + (f" and card_status {card_status}" if card_status else ""))
         else:
             logger.warning(f"Card shipping document with ID {request_id} not found, only updated withdraw request")
 
@@ -212,7 +211,9 @@ async def get_all_withdraw_requests_with_cursor(
     limit: int = 10, 
     cursor: Optional[str] = None,
     sort_by: str = "created_at",
-    sort_order: str = "desc"
+    sort_order: str = "desc",
+    status: Optional[str] = None,
+    card_status: Optional[str] = None
 ) -> AllWithdrawRequestsResponse:
     """
     Get all withdraw requests with cursor-based pagination.
@@ -224,6 +225,8 @@ async def get_all_withdraw_requests_with_cursor(
         cursor: The cursor to start after (optional)
         sort_by: The field to sort by (default: "created_at")
         sort_order: The sort order ("asc" or "desc", default: "desc")
+        status: Filter by status (optional)
+        card_status: Filter by card status (optional)
 
     Returns:
         AllWithdrawRequestsResponse object containing the withdraw requests and cursor pagination info
@@ -246,6 +249,14 @@ async def get_all_withdraw_requests_with_cursor(
 
         # Apply sorting
         query = card_shipping_ref.order_by(sort_by, direction=direction)
+        
+        # Apply status filter if provided
+        if status:
+            query = query.where('status', '==', status)
+        
+        # Apply card_status filter if provided
+        if card_status:
+            query = query.where('card_status', '==', card_status)
 
         # Apply cursor pagination if cursor is provided
         if cursor:
@@ -293,7 +304,7 @@ async def get_all_withdraw_requests_with_cursor(
                 user_email=request_data.get('user_email', ''),
                 card_count=request_data.get('card_count'),
                 shipping_address=request_data.get('shipping_address'),
-                tracking_number=request_data.get('tracking_number')
+                card_status=request_data.get('card_status')
             )
             all_withdraw_requests.append(withdraw_request)
 
@@ -324,7 +335,9 @@ async def get_all_shop_orders_with_cursor(
     limit: int = 10, 
     cursor: Optional[str] = None,
     sort_by: str = "created_at",
-    sort_order: str = "desc"
+    sort_order: str = "desc",
+    status: Optional[str] = None,
+    card_status: Optional[str] = None
 ) -> AllWithdrawRequestsResponse:
     """
     Get all shop orders with cursor-based pagination.
@@ -336,6 +349,8 @@ async def get_all_shop_orders_with_cursor(
         cursor: The cursor to start after (optional)
         sort_by: The field to sort by (default: "created_at")
         sort_order: The sort order ("asc" or "desc", default: "desc")
+        status: Filter by status (optional)
+        card_status: Filter by card status (optional)
 
     Returns:
         AllWithdrawRequestsResponse object containing the shop orders and cursor pagination info
@@ -361,6 +376,14 @@ async def get_all_shop_orders_with_cursor(
 
         # Apply sorting
         query = query.order_by(sort_by, direction=direction)
+        
+        # Apply status filter if provided
+        if status:
+            query = query.where('status', '==', status)
+        
+        # Apply card_status filter if provided
+        if card_status:
+            query = query.where('card_status', '==', card_status)
 
         # Apply cursor pagination if cursor is provided
         if cursor:
@@ -412,7 +435,7 @@ async def get_all_shop_orders_with_cursor(
                 user_email=order_data.get('user_email', ''),
                 card_count=order_data.get('card_count'),
                 shipping_address=order_data.get('shipping_address'),
-                tracking_number=order_data.get('tracking_number')
+                card_status=order_data.get('card_status')
             )
             all_shop_orders.append(shop_order)
 
@@ -507,7 +530,8 @@ async def get_shop_order_by_id(order_id: str, user_id: str, db_client: AsyncClie
             shippo_label_url=shop_order_data.get('shippo_label_url'),
             tracking_number=shop_order_data.get('tracking_number'),
             tracking_url=shop_order_data.get('tracking_url'),
-            shipping_status=shop_order_data.get('shipping_status')
+            shipping_status=shop_order_data.get('shipping_status'),
+            card_status=shop_order_data.get('card_status')
         )
 
         logger.info(f"Retrieved shop order {order_id} for user {user_id}")
@@ -523,8 +547,8 @@ async def update_shop_order_status(
     user_id: str,
     order_id: str,
     status: str,
-    shipping_status: str,
-    db_client: AsyncClient
+    card_status: Optional[str] = None,
+    db_client: AsyncClient = None
 ) -> WithdrawRequestDetail:
     """
     Update the status of a shop order.
@@ -533,7 +557,7 @@ async def update_shop_order_status(
         user_id: The ID of the user who made the shop order
         order_id: The ID of the shop order to update
         status: The new status for the shop order
-        shipping_status: The new shipping status for the shop order
+        card_status: The new card status for the shop order (optional)
         db_client: Firestore client
 
     Returns:
@@ -558,12 +582,13 @@ async def update_shop_order_status(
             raise HTTPException(status_code=404, detail=f"Shop order with ID {order_id} not found for user {user_id}")
 
         # Update the shop order status
-        await shop_order_ref.update({
-            'status': status,
-            'shipping_status': shipping_status
-        })
+        update_data = {'status': status}
+        if card_status is not None:
+            update_data['card_status'] = card_status
+        
+        await shop_order_ref.update(update_data)
 
-        logger.info(f"Updated shop order {order_id} for user {user_id} with status {status} and shipping_status {shipping_status}")
+        logger.info(f"Updated shop order {order_id} for user {user_id} with status {status}" + (f" and card_status {card_status}" if card_status else ""))
 
         # Get the updated shop order
         return await get_shop_order_by_id(order_id, user_id, db_client)

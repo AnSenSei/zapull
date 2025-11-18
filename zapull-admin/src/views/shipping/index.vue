@@ -15,7 +15,7 @@
             v-model="searchForm.type" 
             placeholder="请选择类型" 
             clearable 
-            style="width: 220px;"
+            style="width: 200px;"
           >
             <el-option label="卡片提取" value="card" />
             <el-option label="商店订单" value="shop" />
@@ -26,7 +26,7 @@
             v-model="searchForm.status" 
             placeholder="请选择物流状态" 
             clearable 
-            style="width: 220px;"
+            style="width: 200px;"
           >
             <el-option label="处理中" value="processing" />
             <el-option label="标签已创建" value="label_created" />
@@ -36,16 +36,17 @@
             <el-option label="已取消" value="cancelled" />
           </el-select>
         </el-form-item>
-        <el-form-item label="排序字段" prop="sortBy">
-          <el-select v-model="searchForm.sortBy" placeholder="请选择排序字段" style="width: 150px;" clearable>
-            <el-option label="创建时间" value="created_at" />
-            <el-option label="状态" value="status" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="排序方式" prop="sortOrder">
-          <el-select v-model="searchForm.sortOrder" placeholder="请选择排序方式" style="width: 150px;" clearable>
-            <el-option label="升序" value="asc" />
-            <el-option label="降序" value="desc" />
+        <el-form-item label="卡片状态" prop="card_status">
+          <el-select 
+            v-model="searchForm.card_status" 
+            placeholder="请选择卡片状态" 
+            clearable 
+            style="width: 200px;"
+          >
+            <el-option label="需购卡" value="needs_purchase" />
+            <el-option label="已买卡" value="purchased" />
+            <el-option label="卡到货" value="arrived" />
+            <el-option label="已发货" value="shipped" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -67,11 +68,9 @@
       >
         <el-table-column prop="id" label="物流ID" width="120" sortable="custom" />
         <el-table-column prop="user_email" label="用户邮箱" width="160" sortable="custom" />
-        <el-table-column prop="tracking_number" label="追踪号" width="150" sortable="custom">
+        <el-table-column prop="card_status" label="卡片状态" width="120" sortable="custom">
           <template #default="{ row }">
-            <el-tooltip effect="dark" :content="`点击复制: ${row.tracking_number}`" placement="top">
-              <span class="tracking-number" @click="copyToClipboard(row.tracking_number)">{{ row.tracking_number }}</span>
-            </el-tooltip>
+            <el-tag :type="getCardStatusType(row.card_status)">{{ getCardStatusText(row.card_status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="card_count" label="卡片数量" width="100" sortable="custom" />
@@ -99,17 +98,19 @@
       </el-table>
 
       <div class="pagination-container">
-        <div class="pagination-info">
-          <span>每页 {{ searchForm.limit }} 条，共 {{ tableData.length }} 条</span>
+        <div class="pagination-controls">
           <el-button 
-            v-if="hasMore" 
-            type="primary" 
-            plain 
-            size="small" 
-            @click="loadMore"
-            :loading="loadingMore"
+            :disabled="currentPage === 1" 
+            @click="goToPreviousPage"
           >
-            加载更多
+            上一页
+          </el-button>
+          <span class="page-info">第 {{ currentPage }} 页 (每页 {{ searchForm.limit }} 条)</span>
+          <el-button 
+            :disabled="!hasMore" 
+            @click="goToNextPage"
+          >
+            下一页
           </el-button>
         </div>
       </div>
@@ -128,13 +129,8 @@
         <el-descriptions title="基本信息" :column="2" border>
           <el-descriptions-item label="物流ID">{{ currentViewShipment?.id }}</el-descriptions-item>
           <el-descriptions-item label="用户邮箱">{{ currentViewShipment?.user_email }}</el-descriptions-item>
-          <el-descriptions-item label="追踪号">
-            <div class="tracking-info">
-              <span>{{ currentViewShipment?.tracking_number }}</span>
-              <el-button v-if="currentViewShipment?.tracking_number" type="primary" link @click="copyToClipboard(currentViewShipment?.tracking_number)">
-                复制
-              </el-button>
-            </div>
+          <el-descriptions-item label="卡片状态">
+            <el-tag :type="getCardStatusType(currentViewShipment?.card_status)">{{ getCardStatusText(currentViewShipment?.card_status) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="卡片数量">{{ currentViewShipment?.card_count }}</el-descriptions-item>
           <el-descriptions-item label="状态">
@@ -234,14 +230,12 @@
             <el-option label="已取消" value="cancelled" />
           </el-select>
         </el-form-item>
-        <el-form-item label="物流状态" prop="shipping_status">
-          <el-select v-model="updateStatusForm.shipping_status" placeholder="请选择物流状态" style="width: 100%">
-            <el-option label="处理中" value="processing" />
-            <el-option label="标签已创建" value="label_created" />
+        <el-form-item label="卡片状态" prop="card_status">
+          <el-select v-model="updateStatusForm.card_status" placeholder="请选择卡片状态" style="width: 100%" clearable>
+            <el-option label="需购卡" value="needs_purchase" />
+            <el-option label="已买卡" value="purchased" />
+            <el-option label="卡到货" value="arrived" />
             <el-option label="已发货" value="shipped" />
-            <el-option label="运输中" value="in_transit" />
-            <el-option label="已送达" value="delivered" />
-            <el-option label="已取消" value="cancelled" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -264,6 +258,7 @@ import {
   getShippingDetail,
   getShopOrderDetail,
   updateShippingStatus,
+  updateShopOrderStatus,
   updateShippingActiveStatus,
   type ShippingInfo,
   type UpdateShippingStatusParams
@@ -284,10 +279,11 @@ const activeTab = ref('cards')
 const searchForm = reactive({
   type: '',
   status: '',
+  card_status: '',
   sortBy: 'created_at',
   sortOrder: 'desc',
-  limit: 10,
-  cursor: ''
+  limit: 30,
+  page: 1
 })
 
 // 激活状态筛选，默认全部
@@ -296,8 +292,9 @@ const activeStatus = ref('all')
 // 表格数据
 const tableData = ref<ShippingInfo[]>([])
 const loading = ref(false)
-const loadingMore = ref(false)
 const hasMore = ref(false)
+const currentPage = ref(1)
+const cursors = ref<{[key: number]: string}>({}) // Store cursor for each page
 
 // 查看物流信息相关
 const viewDialogVisible = ref(false)
@@ -310,25 +307,21 @@ const updateStatusLoading = ref(false)
 const currentUpdateShipment = ref<ShippingInfo | null>(null)
 const updateStatusForm = reactive<UpdateShippingStatusParams>({
   status: '',
-  shipping_status: ''
+  card_status: ''
 })
 
 // 处理标签页切换
 const handleTabChange = (tab: string) => {
   // 自动设置类型过滤器以匹配标签页
   searchForm.type = tab === 'shop' ? 'shop' : 'card'
-  fetchShippingList()
+  currentPage.value = 1
+  cursors.value = {}
+  fetchShippingList(1)
 }
 
 // 获取物流列表
-const fetchShippingList = async (reset = true) => {
-  if (reset) {
-    loading.value = true
-    searchForm.cursor = ''
-    tableData.value = []
-  } else {
-    loadingMore.value = true
-  }
+const fetchShippingList = async (page: number = 1) => {
+  loading.value = true
   
   try {
     const params: any = {
@@ -337,14 +330,19 @@ const fetchShippingList = async (reset = true) => {
       sort_order: searchForm.sortOrder
     }
     
-    // 添加状态筛选
+    // 添加状态筛选 - 处理中 maps to pending
     if (searchForm.status) {
-      params.status = searchForm.status
+      params.status = searchForm.status === 'processing' ? 'pending' : searchForm.status
     }
     
-    // 添加游标
-    if (searchForm.cursor && !reset) {
-      params.cursor = searchForm.cursor
+    // 添加卡片状态筛选
+    if (searchForm.card_status) {
+      params.card_status = searchForm.card_status
+    }
+    
+    // 添加游标 - use stored cursor for this page
+    if (page > 1 && cursors.value[page]) {
+      params.cursor = cursors.value[page]
     }
     
     // 根据类型过滤器或标签页选择不同API
@@ -367,28 +365,34 @@ const fetchShippingList = async (reset = true) => {
       response = await getShippingList(params)
     }
     
-    if (reset) {
-      tableData.value = response.withdraw_requests
-    } else {
-      tableData.value = [...tableData.value, ...response.withdraw_requests]
+    tableData.value = response.withdraw_requests
+    
+    // Store cursor for next page
+    if (response.pagination.next_cursor) {
+      cursors.value[page + 1] = response.pagination.next_cursor
     }
     
-    // 更新游标和是否有更多数据
-    searchForm.cursor = response.pagination.next_cursor || ''
     hasMore.value = response.pagination.has_more
+    currentPage.value = page
   } catch (error) {
     console.error('获取物流列表失败：', error)
     ElMessage.error('获取物流列表失败')
   } finally {
     loading.value = false
-    loadingMore.value = false
   }
 }
 
-// 加载更多
-const loadMore = () => {
-  if (searchForm.cursor) {
-    fetchShippingList(false)
+// 上一页
+const goToPreviousPage = () => {
+  if (currentPage.value > 1) {
+    fetchShippingList(currentPage.value - 1)
+  }
+}
+
+// 下一页
+const goToNextPage = () => {
+  if (hasMore.value) {
+    fetchShippingList(currentPage.value + 1)
   }
 }
 
@@ -420,6 +424,30 @@ const getStatusText = (status: string | undefined) => {
   return statusMap[status] || status
 }
 
+// 获取卡片状态类型
+const getCardStatusType = (status: string | undefined) => {
+  if (!status) return ''
+  const statusMap: Record<string, string> = {
+    'needs_purchase': 'warning',
+    'purchased': 'info',
+    'arrived': 'primary',
+    'shipped': 'success'
+  }
+  return statusMap[status] || ''
+}
+
+// 获取卡片状态文本
+const getCardStatusText = (status: string | undefined) => {
+  if (!status) return '-'
+  const statusMap: Record<string, string> = {
+    'needs_purchase': '需购卡',
+    'purchased': '已买卡',
+    'arrived': '卡到货',
+    'shipped': '已发货'
+  }
+  return statusMap[status] || status
+}
+
 // 格式化地址
 const formatAddress = (address: any) => {
   if (!address) return ''
@@ -428,7 +456,9 @@ const formatAddress = (address: any) => {
 
 // 处理激活状态变化
 const handleActiveStatusChange = () => {
-  fetchShippingList()
+  currentPage.value = 1
+  cursors.value = {}
+  fetchShippingList(1)
 }
 
 // 重置方法
@@ -436,15 +466,19 @@ const handleReset = () => {
   activeStatus.value = 'all'
   searchForm.type = ''
   searchForm.status = ''
+  searchForm.card_status = ''
   searchForm.sortBy = 'created_at'
   searchForm.sortOrder = 'desc'
-  searchForm.cursor = ''
-  fetchShippingList()
+  currentPage.value = 1
+  cursors.value = {}
+  fetchShippingList(1)
 }
 
 // 搜索方法
 const handleSearch = () => {
-  fetchShippingList()
+  currentPage.value = 1
+  cursors.value = {}
+  fetchShippingList(1)
 }
 
 // 表格排序变更
@@ -494,7 +528,7 @@ const handleView = async (row: ShippingInfo) => {
 const handleUpdateStatus = (row: ShippingInfo) => {
   currentUpdateShipment.value = row
   updateStatusForm.status = row.status
-  updateStatusForm.shipping_status = row.shipping_status
+  updateStatusForm.card_status = row.card_status || ''
   updateStatusDialogVisible.value = true
 }
 
@@ -504,17 +538,21 @@ const confirmUpdateStatus = async () => {
   
   updateStatusLoading.value = true
   try {
-    await updateShippingStatus(
+    // Detect if this is a shop order
+    const isShopOrder = activeTab.value === 'shop' || currentUpdateShipment.value.id.startsWith('order_')
+    const updateFn = isShopOrder ? updateShopOrderStatus : updateShippingStatus
+    
+    await updateFn(
       currentUpdateShipment.value.user_id,
       currentUpdateShipment.value.id,
       { 
         status: updateStatusForm.status,
-        shipping_status: updateStatusForm.shipping_status 
+        card_status: updateStatusForm.card_status || undefined
       }
     )
     ElMessage.success('更新物流状态成功')
     updateStatusDialogVisible.value = false
-    fetchShippingList() // 刷新列表
+    fetchShippingList(currentPage.value) // 刷新当前页
   } catch (error) {
     console.error('更新物流状态失败：', error)
     ElMessage.error('更新物流状态失败')
@@ -528,7 +566,7 @@ const toggleActiveStatus = async (row: ShippingInfo) => {
   try {
     await updateShippingActiveStatus(row.user_id, row.id, !row.is_active)
     ElMessage.success(`${row.is_active ? '停用' : '激活'}物流成功`)
-    fetchShippingList() // 刷新列表
+    fetchShippingList(currentPage.value) // 刷新当前页
   } catch (error) {
     console.error('更新物流激活状态失败：', error)
     ElMessage.error('更新物流激活状态失败')
@@ -537,7 +575,7 @@ const toggleActiveStatus = async (row: ShippingInfo) => {
 
 // 初始化
 onMounted(() => {
-  fetchShippingList()
+  fetchShippingList(1)
 })
 
 // 保存状态到localStorage
@@ -546,6 +584,7 @@ onDeactivated(() => {
     activeStatus: activeStatus.value,
     searchForm: {
       status: searchForm.status,
+      card_status: searchForm.card_status,
       sortBy: searchForm.sortBy,
       sortOrder: searchForm.sortOrder,
       limit: searchForm.limit
@@ -568,13 +607,14 @@ onActivated(() => {
     // 恢复搜索表单
     if (parsed.searchForm) {
       searchForm.status = parsed.searchForm.status || ''
+      searchForm.card_status = parsed.searchForm.card_status || ''
       searchForm.sortBy = parsed.searchForm.sortBy || 'created_at'
       searchForm.sortOrder = parsed.searchForm.sortOrder || 'desc'
-      searchForm.limit = parsed.searchForm.limit || 10
+      searchForm.limit = parsed.searchForm.limit || 30
     }
   }
   
-  fetchShippingList()
+  fetchShippingList(1)
 })
 </script>
 
@@ -588,12 +628,17 @@ onActivated(() => {
     .pagination-container {
       margin-top: 16px;
       display: flex;
-      justify-content: flex-end;
+      justify-content: center;
       
-      .pagination-info {
+      .pagination-controls {
         display: flex;
         align-items: center;
         gap: 16px;
+        
+        .page-info {
+          font-size: 14px;
+          color: #606266;
+        }
       }
     }
     

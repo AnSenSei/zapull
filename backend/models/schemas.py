@@ -146,6 +146,7 @@ class WithdrawRequest(BaseModel):
     user_email: Optional[str] = Field(None, description="The email address of the user who made the withdraw request")
     card_count: Optional[int] = Field(None, description="The number of cards in this withdraw request")
     shipping_address: Optional[Dict[str, Any]] = Field(None, description="The shipping address for this withdraw request")
+    card_status: Optional[str] = Field(None, description="The status of the cards (e.g., 'needs_purchase', 'purchased', 'arrived', 'shipped')")
 
 class CursorPaginationInfo(BaseModel):
     """Cursor-based pagination information for list responses"""
@@ -187,11 +188,12 @@ class WithdrawRequestDetail(BaseModel):
     tracking_number: Optional[str] = Field(None, description="The tracking number for the shipment")
     tracking_url: Optional[str] = Field(None, description="The URL for tracking the shipment")
     shipping_status: Optional[str] = Field(None, description="The status of the shipment (e.g., 'label_created', 'shipped', 'delivered')")
+    card_status: Optional[str] = Field(None, description="The status of the cards (e.g., 'needs_purchase', 'purchased', 'arrived', 'shipped')")
 
 class UpdateWithdrawRequestStatusRequest(BaseModel):
     """Request model for updating withdraw request status"""
     status: str = Field(..., description="The new status for the withdraw request (e.g., 'pending', 'label_created', 'shipped', 'delivered')")
-    shipping_status: str = Field(..., description="The new shipping status for the withdraw request (e.g., 'label_created', 'shipped', 'delivered')")
+    card_status: Optional[str] = Field(None, description="The status of the cards (e.g., 'needs_purchase', 'purchased', 'arrived', 'shipped')")
 
 class AllWithdrawRequestsResponse(BaseModel):
     """Response model for listing all withdraw requests with cursor pagination"""

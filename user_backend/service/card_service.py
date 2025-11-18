@@ -942,8 +942,6 @@ async def draw_multiple_cards_from_pack_optimized(
         user_data = user_doc.to_dict()
         user_points_balance = user_data.get('pointsBalance', 0)
         client_seed = user_data.get('clientSeed')
-        old_nonce = user_data.get('nonceCounter', 0)
-        nonce = old_nonce + 1
 
         # Get pack data
         pack_data = pack_snap.to_dict()
@@ -951,7 +949,7 @@ async def draw_multiple_cards_from_pack_optimized(
         pack_price = pack_data.get('price', 0)
         total_price = pack_price * count
 
-        # Check points balance
+        # Check points balance (preliminary check - will be rechecked in transaction)
         if user_points_balance < total_price:
             logger.error(f"User '{user_id}' has insufficient points balance ({user_points_balance}) to draw {count} cards (cost: {total_price})")
             raise HTTPException(
@@ -967,15 +965,22 @@ async def draw_multiple_cards_from_pack_optimized(
         card_ids = list(cards_map.keys())
         probabilities = list(cards_map.values())
 
-        # Update nonce counter
+        # Atomically read and increment nonce counter to prevent race condition
         @firestore.async_transactional
-        async def update_nonce(tx: firestore.AsyncTransaction):
+        async def get_and_update_nonce(tx: firestore.AsyncTransaction):
+            user_doc_tx = await user_ref.get(transaction=tx)
+            if not user_doc_tx.exists:
+                raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
+            user_data_tx = user_doc_tx.to_dict()
+            old_nonce = user_data_tx.get('nonceCounter', 0)
+            nonce = old_nonce + 1
             tx.update(user_ref, {'nonceCounter': firestore.Increment(count)})
+            return nonce
 
-        # Execute the transaction
+        # Execute the transaction and get the nonce
         txn = db_client.transaction()
-        await update_nonce(txn)
-        logger.info(f"Updated nonce counter for user '{user_id}'")
+        nonce = await get_and_update_nonce(txn)
+        logger.info(f"Atomically retrieved and updated nonce counter for user '{user_id}', nonce: {nonce}")
 
         # Provably fair random selection - generate individual seed per card
         server_seed = secrets.token_hex(32)

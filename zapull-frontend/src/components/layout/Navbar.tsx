@@ -379,8 +379,8 @@ const Navbar = () => {
       />
 <nav ref={navRef} className="bg-[#2A2B3D] py-2 border-b border-gray-700 fixed top-0 left-0 right-0 z-[60] md:sticky md:top-0 md:z-50">
         <div className="w-full px-0">
-          {/* Centered desktop logo (show only on very large screens 1600px+ to avoid overlap) */}
-          <div className="absolute inset-0 hidden min-[1600px]:flex items-center justify-center pointer-events-none">
+          {/* Centered desktop logo (show only on very large screens 1920px+ to avoid overlap with nav) */}
+          <div className="absolute inset-0 hidden min-[1920px]:flex items-center justify-center pointer-events-none">
             <Link href="/" className="pointer-events-auto">
               <img
                 src="https://draw.zapull.fun/zapull_logo.jpg"
@@ -511,7 +511,7 @@ const Navbar = () => {
             </div>
             
             {/* Main navigation links - Desktop */}
-            <div className="hidden md:flex items-center ml-8 space-x-3">
+            <div className="hidden md:flex items-center ml-4 space-x-2">
               <Link href="/" className="flex items-center px-3 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors">
                 <Image src="/header/home.webp" alt="Home" width={18} height={18} className="w-[18px] h-[18px]" />
               </Link>
@@ -552,6 +552,15 @@ const Navbar = () => {
                 <Link href="/rank" className="flex items-center px-3 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors">
                   <Image src="/header/rankIcon.webp" alt="Ranking" width={18} height={18} className="w-[18px] h-[18px]" />
                   <span className="ml-1">Ranking</span>
+                </Link>
+                <Link
+                  href="https://discord.gg/9x3YX7DXQj"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center px-2 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors"
+                >
+                  <Image src="/payment/gift.png" alt="Gift Code" width={18} height={18} className="w-[18px] h-[18px]" />
+                  <span className="ml-1">Gift Code</span>
                 </Link>
               </div>
             </div>
@@ -829,6 +838,16 @@ const Navbar = () => {
                     <Link href="/rank" className="text-gray-300 hover:text-white hover:bg-[#3F3F5F] py-1.5 px-2 rounded-md flex items-center transition-all duration-200" onClick={() => setIsMenuOpen(false)}>
                       <Image src="/header/rankIcon.webp" alt="Ranking" width={16} height={16} className="w-[16px] h-[16px]" />
                       <span className="ml-2 font-medium">Ranking</span>
+                    </Link>
+                    <Link
+                      href="https://discord.gg/9x3YX7DXQj"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-300 hover:text-white hover:bg-[#3F3F5F] py-1.5 px-2 rounded-md flex items-center transition-all duration-200"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Image src="/payment/gift.png" alt="Gift Code" width={16} height={16} className="w-[16px] h-[16px]" />
+                      <span className="ml-2 font-medium">Gift Code</span>
                     </Link>
                   </div>
                 </div>
