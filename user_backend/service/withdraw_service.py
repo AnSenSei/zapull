@@ -253,6 +253,11 @@ async def withdraw_ship_multiple_cards(user_id: str, cards_to_withdraw: List[Dic
             source_card_data = source_card_doc.to_dict()
             card = UserCard(**source_card_data)
             card_quantity = card.quantity
+            
+            # Validate point_worth
+            point_worth = source_card_data.get('point_worth', 0)
+            if point_worth < 150:
+                raise HTTPException(status_code=400, detail=f"Card {card_id} cannot be withdrawn. Only cards with point_worth >= 150 can be withdrawn (current: {point_worth})")
 
             # Validate quantity
             if quantity > card_quantity:

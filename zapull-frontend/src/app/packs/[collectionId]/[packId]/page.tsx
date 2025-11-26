@@ -702,17 +702,10 @@ export default function PackDetailPage({ params }: PackDetailPageProps) {
         const burstIntensity = card.color === 'red' ? 1.5 : 
                                card.color === 'orange' ? 1.3 : 1.1;
         
-        // Calculate position accounting for mobile viewport differences
-        let posX = rect.left + rect.width / 2;
-        let posY = rect.top + rect.height / 2;
-        
-        // On mobile, adjust for potential viewport offset
-        if (window.visualViewport && (window.visualViewport.width !== window.innerWidth || window.visualViewport.height !== window.innerHeight)) {
-          const offsetX = window.visualViewport.offsetLeft || 0;
-          const offsetY = window.visualViewport.offsetTop || 0;
-          posX = posX - offsetX;
-          posY = posY - offsetY;
-        }
+        // Calculate position - getBoundingClientRect already gives viewport-relative coordinates
+        // which is what we need for the fixed-position particle canvas
+        const posX = rect.left + rect.width / 2;
+        const posY = rect.top + rect.height / 2;
         
         setParticleBursts(prev => [...prev, {
           id: burstId,

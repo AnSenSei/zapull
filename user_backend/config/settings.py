@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # Backend service URLs
     storage_service_url: str
+    frontend_url: str = "https://zapull.fun"  # Default to production URL
 
     # Stripe API settings
     stripe_api_key: str

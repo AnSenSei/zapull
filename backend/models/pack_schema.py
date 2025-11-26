@@ -27,6 +27,7 @@ class CardPack(BaseModel):
     created_at: Optional[Any] = None
     is_active: Optional[bool] = None
     separation: Optional[str] = "other"  # Can be "hunt", "feature", "special", or "other" (default)
+    type: Optional[str] = "US"  # Pack type: "CN", "JP", or "US" (default)
 
 class AddPackRequest(BaseModel):
     """
@@ -41,6 +42,7 @@ class AddPackRequest(BaseModel):
     is_active: bool = False
     popularity: Optional[int] = 0
     separation: Optional[str] = "other"  # Can be "hunt", "feature", "special", or "other" (default)
+    type: Optional[str] = "US"  # Pack type: "CN", "JP", or "US" (default)
 
 class CardInPack(BaseModel):
     """

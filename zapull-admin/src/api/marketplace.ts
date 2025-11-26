@@ -13,7 +13,7 @@ export interface MarketplaceCard {
   condition: string
   used_in_fusion: any[]
   pricePoints: number
-  priceCash: number
+  priceCash: number  // This field is now returned by the API
 }
 
 // 市场列表响应类型
@@ -54,15 +54,13 @@ export const getMarketplaceList = async (
 export interface UpdateMarketplaceItemParams {
   collection_id: string
   card_id: string
-  pricePoints: number
-  priceCash?: number
+  priceCash: number
+  type: string
 }
 
 export const updateMarketplaceItem = async (params: UpdateMarketplaceItemParams): Promise<any> => {
-  // Remove priceCash from params as backend doesn't support it
-  const { priceCash, ...backendParams } = params
   // Backend expects query parameters, not body
-  return request.put('/marketplace/official_listing', null, { params: backendParams })
+  return request.put('/marketplace/official_listing', null, { params })
 }
 
 // 新增市场列表项
@@ -70,15 +68,13 @@ export interface AddMarketplaceItemParams {
   collection_id: string
   card_id: string
   quantity?: number
-  pricePoints: number
-  priceCash?: number
+  priceCash: number
+  type: string
 }
 
 export const addMarketplaceItem = async (params: AddMarketplaceItemParams): Promise<any> => {
-  // Remove priceCash from params as backend doesn't support it
-  const { priceCash, ...backendParams } = params
   // Backend expects query parameters, not body
-  return request.post('/marketplace/official_listing', null, { params: backendParams })
+  return request.post('/marketplace/official_listing', null, { params })
 }
 
 // 修改单个数量

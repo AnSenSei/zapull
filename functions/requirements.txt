@@ -2,3 +2,5 @@ functions-framework==3.*
 google-cloud-firestore==2.*
 firebase-admin==6.*
 Flask==3.*
+stripe
+shippo>=2.0.2

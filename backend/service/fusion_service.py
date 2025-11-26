@@ -996,9 +996,57 @@ async def update_fusion_recipe(
                 # If not found in current, check in added ingredients
                 if not ingredient_found and updates.added_ingredients:
                     for ingredient in updates.added_ingredients:
-                        if (ingredient.card_id == card_id and 
-                            ingredient.card_collection_id == card_collection_id):
-                            final_ingredients.append(ingredient)
+                        # FusionIngredientRequest only has card_id and quantity
+                        if ingredient.card_id == card_id:
+                            # Need to construct full FusionIngredient with card data
+                            ingredient_data = {
+                                "card_id": card_id,
+                                "card_collection_id": card_collection_id,
+                                "quantity": ingredient.quantity,
+                                "card_reference": "",
+                                "card_name": "",
+                                "image_url": "",
+                                "point_worth": 0,
+                                "probability": 0
+                            }
+                            
+                            # Get collection metadata for card_reference
+                            collection_name = card_collection_id  # Default to card_collection_id
+                            try:
+                                from service.storage_service import get_collection_metadata
+                                metadata = await get_collection_metadata(card_collection_id)
+                                collection_name = metadata.firestoreCollection
+                                ingredient_data["card_reference"] = f"{collection_name}/{card_id}"
+                            except Exception as e:
+                                logger.warning(f"Could not get collection metadata for ingredient: {e}")
+                                ingredient_data["card_reference"] = f"{card_collection_id}/{card_id}"
+                            
+                            # Fetch card data to populate additional fields
+                            try:
+                                card_doc_ref = db_client.collection(collection_name).document(card_id)
+                                card_doc = await card_doc_ref.get()
+                                if card_doc.exists:
+                                    card_info = card_doc.to_dict()
+                                    ingredient_data["card_name"] = card_info.get("card_name", "")
+                                    ingredient_data["point_worth"] = card_info.get("point_worth", 0)
+                                    ingredient_data["image_url"] = card_info.get("image_url", "")
+                                    
+                                    # Get probability from pack data
+                                    try:
+                                        pack_id_for_prob = new_pack_id or current_recipe_data.get('pack_id')
+                                        pack_collection_id_for_prob = updates.pack_collection_id or current_recipe_data.get('pack_collection_id')
+                                        pack_doc_ref = db_client.collection('packs').document(pack_collection_id_for_prob).collection(pack_collection_id_for_prob).document(pack_id_for_prob)
+                                        pack_doc = await pack_doc_ref.get()
+                                        if pack_doc.exists:
+                                            pack_data = pack_doc.to_dict()
+                                            cards_map = pack_data.get("cards", {})
+                                            ingredient_data["probability"] = cards_map.get(card_id, 0)
+                                    except Exception as e:
+                                        logger.warning(f"Failed to get probability for card {card_id}: {e}")
+                            except Exception as e:
+                                logger.warning(f"Failed to get card info for added ingredient {card_id}: {e}")
+                            
+                            final_ingredients.append(FusionIngredient(**ingredient_data))
                             break
 
             # Remove fusion information from removed ingredients

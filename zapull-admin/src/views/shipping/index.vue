@@ -1,36 +1,54 @@
 <template>
   <div class="shipping-container">
+    <!-- 类型切换标签页 -->
+    <el-card class="tabs-card" style="margin-bottom: 20px;">
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+        <el-tab-pane label="卡片提取 (Cards)" name="cards"></el-tab-pane>
+        <el-tab-pane label="商店订单 (Shop)" name="shop"></el-tab-pane>
+        <el-tab-pane label="已归档 (Archived)" name="archived"></el-tab-pane>
+      </el-tabs>
+    </el-card>
+    
     <el-card class="search-card">
       <el-form ref="searchFormRef" inline>
+        <el-form-item label="类型" prop="type">
+          <el-select 
+            v-model="searchForm.type" 
+            placeholder="请选择类型" 
+            clearable 
+            style="width: 200px;"
+          >
+            <el-option label="卡片提取" value="card" />
+            <el-option label="商店订单" value="shop" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="物流状态" prop="status">
           <el-select 
             v-model="searchForm.status" 
             placeholder="请选择物流状态" 
             clearable 
-            style="width: 220px;"
+            style="width: 200px;"
           >
             <el-option label="处理中" value="processing" />
+            <el-option label="标签已创建" value="label_created" />
             <el-option label="已发货" value="shipped" />
             <el-option label="运输中" value="in_transit" />
             <el-option label="已送达" value="delivered" />
             <el-option label="已取消" value="cancelled" />
           </el-select>
         </el-form-item>
-        <el-form-item label="排序字段" prop="sortBy">
-          <el-select v-model="searchForm.sortBy" placeholder="请选择排序字段" style="width: 150px;" clearable>
-            <el-option label="创建时间" value="created_at" />
-            <el-option label="状态" value="status" />
-            <el-option label="物流公司" value="carrier" />
+        <el-form-item label="卡片状态" prop="card_status">
+          <el-select 
+            v-model="searchForm.card_status" 
+            placeholder="请选择卡片状态" 
+            clearable 
+            style="width: 200px;"
+          >
+            <el-option label="需购卡" value="needs_purchase" />
+            <el-option label="已买卡" value="purchased" />
+            <el-option label="卡到货" value="arrived" />
+            <el-option label="已发货" value="shipped" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="排序方式" prop="sortOrder">
-          <el-select v-model="searchForm.sortOrder" placeholder="请选择排序方式" style="width: 150px;" clearable>
-            <el-option label="升序" value="asc" />
-            <el-option label="降序" value="desc" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="搜索" prop="searchQuery">
-          <el-input v-model="searchForm.searchQuery" placeholder="请输入订单号或追踪号" clearable />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
@@ -40,10 +58,6 @@
     </el-card>
 
     <el-card class="table-card">
-      <div class="header-actions">
-        <el-button type="primary" @click="handleAdd">添加物流信息</el-button>
-        <el-button type="success" @click="handleExport" :loading="exportLoading">导出物流信息</el-button>
-      </div>
       <el-table 
         :data="tableData" 
         border 
@@ -54,27 +68,20 @@
         @sort-change="handleSortChange"
       >
         <el-table-column prop="id" label="物流ID" width="120" sortable="custom" />
-        <el-table-column prop="order_id" label="订单ID" width="120" sortable="custom" />
-        <el-table-column prop="tracking_number" label="追踪号" width="150" sortable="custom">
+        <el-table-column prop="user_email" label="用户邮箱" width="160" sortable="custom" />
+        <el-table-column prop="card_status" label="卡片状态" width="120" sortable="custom">
           <template #default="{ row }">
-            <el-tooltip effect="dark" :content="`点击复制: ${row.tracking_number}`" placement="top">
-              <span class="tracking-number" @click="copyToClipboard(row.tracking_number)">{{ row.tracking_number }}</span>
-            </el-tooltip>
+            <el-tag :type="getCardStatusType(row.card_status)">{{ getCardStatusText(row.card_status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="carrier" label="物流公司" width="120" sortable="custom" />
-        <el-table-column prop="status" label="状态" width="100" sortable="custom">
+        <el-table-column prop="card_count" label="卡片数量" width="100" sortable="custom" />
+        <el-table-column prop="status" label="状态" width="120" sortable="custom">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="estimated_delivery_date" label="预计送达日期" width="120" sortable="custom" />
-        <el-table-column prop="actual_delivery_date" label="实际送达日期" width="120" sortable="custom">
-          <template #default="{ row }">
-            {{ row.actual_delivery_date || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="shipping_address.recipient_name" label="收件人" width="100" sortable="custom" />
+
+        <el-table-column prop="shipping_address.name" label="收件人" width="100" sortable="custom" />
         <el-table-column label="地址" min-width="200">
           <template #default="{ row }">
             <el-tooltip effect="dark" :content="formatAddress(row.shipping_address)" placement="top">
@@ -83,262 +90,176 @@
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="180" sortable="custom" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="handleView(row)">查看</el-button>
-            <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">
-              <el-icon><Delete /></el-icon>
-              删除
+            <el-button link type="primary" @click="handleUpdateStatus(row)">更新状态</el-button>
+            <el-button 
+              v-if="activeTab !== 'archived'" 
+              link 
+              type="danger" 
+              @click="handleArchive(row)"
+            >
+              归档
+            </el-button>
+            <el-button 
+              v-else 
+              link 
+              type="success" 
+              @click="handleUnarchive(row)"
+            >
+              取消归档
             </el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
+        <div class="pagination-controls">
+          <el-button 
+            :disabled="currentPage === 1" 
+            @click="goToPreviousPage"
+          >
+            上一页
+          </el-button>
+          <span class="page-info">第 {{ currentPage }} 页 (每页 {{ searchForm.limit }} 条)</span>
+          <el-button 
+            :disabled="!hasMore" 
+            @click="goToNextPage"
+          >
+            下一页
+          </el-button>
+        </div>
       </div>
     </el-card>
     
-    <!-- 添加物流信息抽屉 -->
+    <!-- 查看物流信息抽屉 -->
     <el-drawer
-      v-model="addDrawerVisible"
-      title="添加物流信息"
-      size="50%"
-      :destroy-on-close="false"
-    >
-      <el-form 
-        ref="addFormRef" 
-        :model="addFormData" 
-        :rules="addRules" 
-        label-width="120px"
-        v-loading="addLoading"
-      >
-        <el-form-item label="订单ID" prop="order_id">
-          <el-input v-model="addFormData.order_id" placeholder="请输入订单ID" />
-        </el-form-item>
-        
-        <el-form-item label="追踪号" prop="tracking_number">
-          <el-input v-model="addFormData.tracking_number" placeholder="请输入追踪号" />
-        </el-form-item>
-        
-        <el-form-item label="物流公司" prop="carrier">
-          <el-select v-model="addFormData.carrier" placeholder="请选择物流公司" filterable allow-create>
-            <el-option 
-              v-for="item in carrierOptions" 
-              :key="item.value" 
-              :label="item.label" 
-              :value="item.value" 
-            />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="状态" prop="status">
-          <el-select v-model="addFormData.status" placeholder="请选择物流状态">
-            <el-option label="处理中" value="processing" />
-            <el-option label="已发货" value="shipped" />
-            <el-option label="运输中" value="in_transit" />
-            <el-option label="已送达" value="delivered" />
-            <el-option label="已取消" value="cancelled" />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="预计送达日期" prop="estimated_delivery_date">
-          <el-date-picker
-            v-model="addFormData.estimated_delivery_date"
-            type="date"
-            placeholder="选择日期"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-          />
-        </el-form-item>
-        
-        <el-divider>收件人信息</el-divider>
-        
-        <el-form-item label="收件人姓名" prop="shipping_address.recipient_name">
-          <el-input v-model="addFormData.shipping_address.recipient_name" placeholder="请输入收件人姓名" />
-        </el-form-item>
-        
-        <el-form-item label="街道地址" prop="shipping_address.street_address">
-          <el-input v-model="addFormData.shipping_address.street_address" placeholder="请输入街道地址" />
-        </el-form-item>
-        
-        <el-form-item label="城市" prop="shipping_address.city">
-          <el-input v-model="addFormData.shipping_address.city" placeholder="请输入城市" />
-        </el-form-item>
-        
-        <el-form-item label="省/州" prop="shipping_address.state">
-          <el-input v-model="addFormData.shipping_address.state" placeholder="请输入省/州" />
-        </el-form-item>
-        
-        <el-form-item label="邮政编码" prop="shipping_address.postal_code">
-          <el-input v-model="addFormData.shipping_address.postal_code" placeholder="请输入邮政编码" />
-        </el-form-item>
-        
-        <el-form-item label="国家" prop="shipping_address.country">
-          <el-input v-model="addFormData.shipping_address.country" placeholder="请输入国家" />
-        </el-form-item>
-        
-        <el-form-item label="电话号码" prop="shipping_address.phone_number">
-          <el-input v-model="addFormData.shipping_address.phone_number" placeholder="请输入电话号码" />
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button type="primary" @click="submitAddForm">添加</el-button>
-          <el-button @click="resetAddForm">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-drawer>
-
-    <!-- 编辑物流信息抽屉 -->
-    <el-drawer
-      v-model="editDrawerVisible"
-      title="编辑物流信息"
-      size="50%"
-      :destroy-on-close="false"
-    >
-      <el-form 
-        ref="editFormRef" 
-        :model="editFormData" 
-        :rules="editRules" 
-        label-width="120px"
-        v-loading="editLoading"
-      >
-        <el-form-item label="追踪号" prop="tracking_number">
-          <el-input v-model="editFormData.tracking_number" placeholder="请输入追踪号" />
-        </el-form-item>
-        
-        <el-form-item label="物流公司" prop="carrier">
-          <el-select v-model="editFormData.carrier" placeholder="请选择物流公司" filterable allow-create>
-            <el-option 
-              v-for="item in carrierOptions" 
-              :key="item.value" 
-              :label="item.label" 
-              :value="item.value" 
-            />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="状态" prop="status">
-          <el-select v-model="editFormData.status" placeholder="请选择物流状态">
-            <el-option label="处理中" value="processing" />
-            <el-option label="已发货" value="shipped" />
-            <el-option label="运输中" value="in_transit" />
-            <el-option label="已送达" value="delivered" />
-            <el-option label="已取消" value="cancelled" />
-          </el-select>
-        </el-form-item>
-        
-        <el-form-item label="预计送达日期" prop="estimated_delivery_date">
-          <el-date-picker
-            v-model="editFormData.estimated_delivery_date"
-            type="date"
-            placeholder="选择日期"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-          />
-        </el-form-item>
-        
-        <el-form-item label="实际送达日期" prop="actual_delivery_date">
-          <el-date-picker
-            v-model="editFormData.actual_delivery_date"
-            type="date"
-            placeholder="选择日期"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-          />
-        </el-form-item>
-        
-        <el-divider>收件人信息</el-divider>
-        
-        <el-form-item label="收件人姓名" prop="shipping_address.recipient_name">
-          <el-input v-model="editFormData.shipping_address.recipient_name" placeholder="请输入收件人姓名" />
-        </el-form-item>
-        
-        <el-form-item label="街道地址" prop="shipping_address.street_address">
-          <el-input v-model="editFormData.shipping_address.street_address" placeholder="请输入街道地址" />
-        </el-form-item>
-        
-        <el-form-item label="城市" prop="shipping_address.city">
-          <el-input v-model="editFormData.shipping_address.city" placeholder="请输入城市" />
-        </el-form-item>
-        
-        <el-form-item label="省/州" prop="shipping_address.state">
-          <el-input v-model="editFormData.shipping_address.state" placeholder="请输入省/州" />
-        </el-form-item>
-        
-        <el-form-item label="邮政编码" prop="shipping_address.postal_code">
-          <el-input v-model="editFormData.shipping_address.postal_code" placeholder="请输入邮政编码" />
-        </el-form-item>
-        
-        <el-form-item label="国家" prop="shipping_address.country">
-          <el-input v-model="editFormData.shipping_address.country" placeholder="请输入国家" />
-        </el-form-item>
-        
-        <el-form-item label="电话号码" prop="shipping_address.phone_number">
-          <el-input v-model="editFormData.shipping_address.phone_number" placeholder="请输入电话号码" />
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button type="primary" @click="submitEditForm">保存</el-button>
-          <el-button @click="editDrawerVisible = false">取消</el-button>
-        </el-form-item>
-      </el-form>
-    </el-drawer>
-
-    <!-- 查看物流信息对话框 -->
-    <el-dialog
       v-model="viewDialogVisible"
       title="物流详情"
-      width="600px"
+      size="50%"
+      :destroy-on-close="false"
+      direction="rtl"
     >
-      <el-descriptions :column="1" border>
-        <el-descriptions-item label="物流ID">{{ currentViewShipment?.id }}</el-descriptions-item>
-        <el-descriptions-item label="订单ID">{{ currentViewShipment?.order_id }}</el-descriptions-item>
-        <el-descriptions-item label="追踪号">{{ currentViewShipment?.tracking_number }}</el-descriptions-item>
-        <el-descriptions-item label="物流公司">{{ currentViewShipment?.carrier }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="getStatusType(currentViewShipment?.status)">{{ getStatusText(currentViewShipment?.status) }}</el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="预计送达日期">{{ currentViewShipment?.estimated_delivery_date }}</el-descriptions-item>
-        <el-descriptions-item label="实际送达日期">{{ currentViewShipment?.actual_delivery_date || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="收件人">{{ currentViewShipment?.shipping_address?.recipient_name }}</el-descriptions-item>
-        <el-descriptions-item label="地址">
-          {{ formatAddress(currentViewShipment?.shipping_address) }}
-        </el-descriptions-item>
-        <el-descriptions-item label="电话号码">{{ currentViewShipment?.shipping_address?.phone_number }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ currentViewShipment?.created_at }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ currentViewShipment?.updated_at }}</el-descriptions-item>
-      </el-descriptions>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="viewDialogVisible = false">关闭</el-button>
-        </span>
-      </template>
-    </el-dialog>
+      <div v-loading="viewLoading">
+        <!-- 基本信息 -->
+        <el-descriptions title="基本信息" :column="2" border>
+          <el-descriptions-item label="物流ID">{{ currentViewShipment?.id }}</el-descriptions-item>
+          <el-descriptions-item label="用户邮箱">{{ currentViewShipment?.user_email }}</el-descriptions-item>
+          <el-descriptions-item label="卡片状态">
+            <el-tag :type="getCardStatusType(currentViewShipment?.card_status)">{{ getCardStatusText(currentViewShipment?.card_status) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="卡片数量">{{ currentViewShipment?.card_count }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="getStatusType(currentViewShipment?.status)">{{ getStatusText(currentViewShipment?.status) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="物流状态">
+            <el-tag :type="getStatusType(currentViewShipment?.shipping_status)">{{ getStatusText(currentViewShipment?.shipping_status) }}</el-tag>
+          </el-descriptions-item>
 
-    <!-- 删除确认对话框 -->
+          <el-descriptions-item label="创建时间">{{ currentViewShipment?.created_at }}</el-descriptions-item>
+          <el-descriptions-item label="请求时间">{{ currentViewShipment?.request_date }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 收件人信息 -->
+        <el-descriptions title="收件人信息" :column="2" border class="mt-20">
+          <el-descriptions-item label="收件人">{{ currentViewShipment?.shipping_address?.name }}</el-descriptions-item>
+          <el-descriptions-item label="地址ID">{{ currentViewShipment?.shipping_address?.id }}</el-descriptions-item>
+          <el-descriptions-item label="详细地址" :span="2">
+            {{ formatAddress(currentViewShipment?.shipping_address) }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <!-- Shippo信息 -->
+        <el-descriptions title="Shippo信息" :column="2" border class="mt-20">
+          <el-descriptions-item label="Shippo地址ID">{{ currentViewShipment?.shippo_address_id }}</el-descriptions-item>
+          <el-descriptions-item label="Shippo包裹ID">{{ currentViewShipment?.shippo_parcel_id }}</el-descriptions-item>
+          <el-descriptions-item label="Shippo运单ID">{{ currentViewShipment?.shippo_shipment_id }}</el-descriptions-item>
+          <el-descriptions-item label="Shippo交易ID">{{ currentViewShipment?.shippo_transaction_id }}</el-descriptions-item>
+          <el-descriptions-item label="运单标签" :span="2">
+            <div v-if="currentViewShipment?.shippo_label_url">
+              <el-link :href="currentViewShipment?.shippo_label_url" target="_blank" type="primary">查看运单标签</el-link>
+            </div>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="追踪链接" :span="2">
+            <div v-if="currentViewShipment?.tracking_url">
+              <el-link :href="currentViewShipment?.tracking_url" target="_blank" type="primary">查看物流追踪</el-link>
+            </div>
+            <span v-else>-</span>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 卡片信息 -->
+        <div class="mt-20">
+          <div class="section-header">
+            <span class="section-title">卡片信息</span>
+          </div>
+          <el-table :data="currentViewShipment?.cards || []" border stripe style="width: 100%">
+            <el-table-column prop="card_name" label="卡片名称" min-width="120" />
+            <el-table-column prop="id" label="卡片ID" min-width="120" />
+            <el-table-column prop="quantity" label="数量" width="80" />
+            <el-table-column prop="rarity" label="稀有度" width="80" />
+            <el-table-column prop="point_worth" label="点数价值" width="100" />
+            <el-table-column label="图片" width="120">
+              <template #default="{ row }">
+                <el-image 
+                  style="width: 80px; height: 80px" 
+                  :src="row.image_url" 
+                  :preview-src-list="[row.image_url]"
+                  fit="cover"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="获取时间" min-width="180">
+              <template #default="{ row }">
+                {{ row.date_got || '-' }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- 操作区域 -->
+        <div class="action-area mt-20">
+          <el-button type="primary" @click="handleUpdateStatus(currentViewShipment)">更新状态</el-button>
+          <el-button @click="viewDialogVisible = false">关闭</el-button>
+        </div>
+      </div>
+    </el-drawer>
+
+    <!-- 更新状态对话框 -->
     <el-dialog
-      v-model="deleteDialogVisible"
-      title="确认删除"
+      v-model="updateStatusDialogVisible"
+      title="更新物流状态"
       width="400px"
     >
-      <p>确定要删除该物流信息吗？此操作不可恢复。</p>
+      <el-form :model="updateStatusForm" label-width="100px">
+        <el-form-item label="当前状态">
+          <el-tag :type="getStatusType(currentUpdateShipment?.status)">{{ getStatusText(currentUpdateShipment?.status) }}</el-tag>
+        </el-form-item>
+        <el-form-item label="新状态" prop="status">
+          <el-select v-model="updateStatusForm.status" placeholder="请选择新状态" style="width: 100%">
+            <el-option label="处理中" value="processing" />
+            <el-option label="标签已创建" value="label_created" />
+            <el-option label="已发货" value="shipped" />
+            <el-option label="运输中" value="in_transit" />
+            <el-option label="已送达" value="delivered" />
+            <el-option label="已取消" value="cancelled" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="卡片状态" prop="card_status">
+          <el-select v-model="updateStatusForm.card_status" placeholder="请选择卡片状态" style="width: 100%" clearable>
+            <el-option label="需购卡" value="needs_purchase" />
+            <el-option label="已买卡" value="purchased" />
+            <el-option label="卡到货" value="arrived" />
+            <el-option label="已发货" value="shipped" />
+          </el-select>
+        </el-form-item>
+      </el-form>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="deleteDialogVisible = false">取消</el-button>
-          <el-button type="danger" @click="confirmDelete">
-            <el-icon><Delete /></el-icon>
-            确认删除
-          </el-button>
+          <el-button @click="updateStatusDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmUpdateStatus" :loading="updateStatusLoading">确认更新</el-button>
         </span>
       </template>
     </el-dialog>
@@ -347,190 +268,140 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onActivated, onDeactivated } from 'vue'
-import { Delete } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import { 
   getShippingList,
+  getInactiveShippingList,
+  getArchivedShippingList,
   getShippingDetail,
-  createShipping,
-  updateShipping,
-  deleteShipping,
+  getShopOrderDetail,
+  updateShippingStatus,
+  updateShopOrderStatus,
+  updateShippingActiveStatus,
+  archiveShipping,
+  unarchiveShipping,
   type ShippingInfo,
-  type CreateShippingParams,
-  type UpdateShippingParams
-} from '../../api/shipping'
-import { ElMessage, ElMessageBox } from 'element-plus'
+  type UpdateShippingStatusParams
+} from '../../api/shipping-new'
+import { getShopOrders } from '../../api/shipping'
+import { ElMessage } from 'element-plus'
+
+const router = useRouter()
 
 defineOptions({
   name: 'ShippingIndex'
 })
 
+// 派生标签页
+const activeTab = ref('cards')
+
 // 搜索表单数据
 const searchForm = reactive({
+  type: '',
   status: '',
+  card_status: '',
   sortBy: 'created_at',
   sortOrder: 'desc',
-  searchQuery: ''
+  limit: 30,
+  page: 1
 })
+
+// 激活状态筛选，默认全部
+const activeStatus = ref('all')
 
 // 表格数据
 const tableData = ref<ShippingInfo[]>([])
 const loading = ref(false)
+const hasMore = ref(false)
 const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
-
-// 添加抽屉相关
-const addDrawerVisible = ref(false)
-const addLoading = ref(false)
-const addFormRef = ref()
-
-// 添加表单数据
-const addFormData = reactive<CreateShippingParams>({
-  order_id: '',
-  tracking_number: '',
-  carrier: '',
-  status: 'processing',
-  estimated_delivery_date: '',
-  shipping_address: {
-    recipient_name: '',
-    street_address: '',
-    city: '',
-    state: '',
-    postal_code: '',
-    country: '',
-    phone_number: ''
-  }
-})
-
-// 添加表单验证规则
-const addRules = {
-  order_id: [
-    { required: true, message: '请输入订单ID', trigger: 'blur' }
-  ],
-  tracking_number: [
-    { required: true, message: '请输入追踪号', trigger: 'blur' }
-  ],
-  carrier: [
-    { required: true, message: '请输入物流公司', trigger: 'blur' }
-  ],
-  status: [
-    { required: true, message: '请选择物流状态', trigger: 'change' }
-  ],
-  estimated_delivery_date: [
-    { required: true, message: '请选择预计送达日期', trigger: 'change' }
-  ],
-  'shipping_address.recipient_name': [
-    { required: true, message: '请输入收件人姓名', trigger: 'blur' }
-  ],
-  'shipping_address.street_address': [
-    { required: true, message: '请输入街道地址', trigger: 'blur' }
-  ],
-  'shipping_address.city': [
-    { required: true, message: '请输入城市', trigger: 'blur' }
-  ],
-  'shipping_address.state': [
-    { required: true, message: '请输入省/州', trigger: 'blur' }
-  ],
-  'shipping_address.postal_code': [
-    { required: true, message: '请输入邮政编码', trigger: 'blur' }
-  ],
-  'shipping_address.country': [
-    { required: true, message: '请输入国家', trigger: 'blur' }
-  ],
-  'shipping_address.phone_number': [
-    { required: true, message: '请输入电话号码', trigger: 'blur' }
-  ]
-}
-
-// 编辑抽屉相关
-const editDrawerVisible = ref(false)
-const editLoading = ref(false)
-const editFormRef = ref()
-const currentEditShipment = ref<ShippingInfo | null>(null)
-
-// 编辑表单数据
-const editFormData = reactive<UpdateShippingParams>({
-  tracking_number: '',
-  carrier: '',
-  status: '',
-  estimated_delivery_date: '',
-  actual_delivery_date: '',
-  shipping_address: {
-    recipient_name: '',
-    street_address: '',
-    city: '',
-    state: '',
-    postal_code: '',
-    country: '',
-    phone_number: ''
-  }
-})
-
-// 编辑表单验证规则
-const editRules = {
-  tracking_number: [
-    { required: true, message: '请输入追踪号', trigger: 'blur' }
-  ],
-  carrier: [
-    { required: true, message: '请输入物流公司', trigger: 'blur' }
-  ],
-  status: [
-    { required: true, message: '请选择物流状态', trigger: 'change' }
-  ],
-  'shipping_address.recipient_name': [
-    { required: true, message: '请输入收件人姓名', trigger: 'blur' }
-  ]
-}
+const cursors = ref<{[key: number]: string}>({}) // Store cursor for each page
 
 // 查看物流信息相关
 const viewDialogVisible = ref(false)
+const viewLoading = ref(false)
 const currentViewShipment = ref<ShippingInfo | null>(null)
 
-// 删除物流信息相关
-const deleteDialogVisible = ref(false)
-const currentDeleteId = ref('')
+// 更新状态相关
+const updateStatusDialogVisible = ref(false)
+const updateStatusLoading = ref(false)
+const currentUpdateShipment = ref<ShippingInfo | null>(null)
+const updateStatusForm = reactive<UpdateShippingStatusParams>({
+  status: '',
+  card_status: ''
+})
 
-// 导出相关
-const exportLoading = ref(false)
-
-// 常用物流公司列表
-const carrierOptions = [
-  { label: '顺丰速运', value: '顺丰速运' },
-  { label: '中通快递', value: '中通快递' },
-  { label: '圆通速递', value: '圆通速递' },
-  { label: '申通快递', value: '申通快递' },
-  { label: '韵达速递', value: '韵达速递' },
-  { label: '百世快递', value: '百世快递' },
-  { label: 'EMS', value: 'EMS' },
-  { label: '京东物流', value: '京东物流' },
-  { label: '德邦快递', value: '德邦快递' },
-  { label: '天天快递', value: '天天快递' },
-  { label: 'FedEx', value: 'FedEx' },
-  { label: 'UPS', value: 'UPS' },
-  { label: 'DHL', value: 'DHL' },
-  { label: '其他', value: '其他' }
-]
+// 处理标签页切换
+const handleTabChange = (tab: string) => {
+  // 自动设置类型过滤器以匹配标签页
+  if (tab === 'shop') {
+    searchForm.type = 'shop'
+  } else if (tab === 'cards') {
+    searchForm.type = 'card'
+  } else {
+    searchForm.type = '' // Archived doesn't enforce type
+  }
+  currentPage.value = 1
+  cursors.value = {}
+  fetchShippingList(1)
+}
 
 // 获取物流列表
-const fetchShippingList = async () => {
+const fetchShippingList = async (page: number = 1) => {
   loading.value = true
+  
   try {
     const params: any = {
-      page: currentPage.value,
-      per_page: pageSize.value,
+      limit: searchForm.limit,
       sort_by: searchForm.sortBy,
-      sort_order: searchForm.sortOrder,
-      search_query: searchForm.searchQuery
+      sort_order: searchForm.sortOrder
     }
     
-    // 添加状态筛选
+    // 添加状态筛选 - 处理中 maps to pending
     if (searchForm.status) {
-      params.status = searchForm.status
+      params.status = searchForm.status === 'processing' ? 'pending' : searchForm.status
     }
     
-    const response = await getShippingList(params)
-    tableData.value = response.data.shipments
-    total.value = response.data.pagination.total_items
+    // 添加卡片状态筛选
+    if (searchForm.card_status) {
+      params.card_status = searchForm.card_status
+    }
+    
+    // 添加游标 - use stored cursor for this page
+    if (page > 1 && cursors.value[page]) {
+      params.cursor = cursors.value[page]
+    }
+    
+    // 根据类型过滤器或标签页选择不同API
+    const effectiveType = searchForm.type || activeTab.value
+    let response
+    
+    if (effectiveType === 'shop') {
+      // 商店订单使用shop orders API - 直接返回响应
+      const shopParams = {
+        page: 1,
+        per_page: params.limit,
+        sort_by: params.sort_by,
+        sort_order: params.sort_order,
+        status: params.status
+      }
+      response = await getShopOrders(shopParams)
+    } else if (activeTab.value === 'archived') {
+      response = await getArchivedShippingList(params)
+    } else if (activeStatus.value === 'inactive') {
+      response = await getInactiveShippingList(params)
+    } else {
+      response = await getShippingList(params)
+    }
+    
+    tableData.value = response.withdraw_requests
+    
+    // Store cursor for next page
+    if (response.pagination.next_cursor) {
+      cursors.value[page + 1] = response.pagination.next_cursor
+    }
+    
+    hasMore.value = response.pagination.has_more
+    currentPage.value = page
   } catch (error) {
     console.error('获取物流列表失败：', error)
     ElMessage.error('获取物流列表失败')
@@ -539,13 +410,28 @@ const fetchShippingList = async () => {
   }
 }
 
+// 上一页
+const goToPreviousPage = () => {
+  if (currentPage.value > 1) {
+    fetchShippingList(currentPage.value - 1)
+  }
+}
+
+// 下一页
+const goToNextPage = () => {
+  if (hasMore.value) {
+    fetchShippingList(currentPage.value + 1)
+  }
+}
+
 // 获取状态类型
 const getStatusType = (status: string | undefined) => {
   if (!status) return ''
   const statusMap: Record<string, string> = {
     'processing': 'info',
-    'shipped': 'warning',
-    'in_transit': 'primary',
+    'label_created': 'warning',
+    'shipped': 'primary',
+    'in_transit': 'success',
     'delivered': 'success',
     'cancelled': 'danger'
   }
@@ -557,6 +443,7 @@ const getStatusText = (status: string | undefined) => {
   if (!status) return ''
   const statusMap: Record<string, string> = {
     'processing': '处理中',
+    'label_created': '标签已创建',
     'shipped': '已发货',
     'in_transit': '运输中',
     'delivered': '已送达',
@@ -565,37 +452,61 @@ const getStatusText = (status: string | undefined) => {
   return statusMap[status] || status
 }
 
+// 获取卡片状态类型
+const getCardStatusType = (status: string | undefined) => {
+  if (!status) return ''
+  const statusMap: Record<string, string> = {
+    'needs_purchase': 'warning',
+    'purchased': 'info',
+    'arrived': 'primary',
+    'shipped': 'success'
+  }
+  return statusMap[status] || ''
+}
+
+// 获取卡片状态文本
+const getCardStatusText = (status: string | undefined) => {
+  if (!status) return '-'
+  const statusMap: Record<string, string> = {
+    'needs_purchase': '需购卡',
+    'purchased': '已买卡',
+    'arrived': '卡到货',
+    'shipped': '已发货'
+  }
+  return statusMap[status] || status
+}
+
 // 格式化地址
 const formatAddress = (address: any) => {
   if (!address) return ''
-  return `${address.street_address}, ${address.city}, ${address.state}, ${address.postal_code}, ${address.country}`
+  return `${address.street}, ${address.city}, ${address.state}, ${address.zip}, ${address.country}`
+}
+
+// 处理激活状态变化
+const handleActiveStatusChange = () => {
+  currentPage.value = 1
+  cursors.value = {}
+  fetchShippingList(1)
 }
 
 // 重置方法
 const handleReset = () => {
+  activeStatus.value = 'all'
+  searchForm.type = ''
   searchForm.status = ''
+  searchForm.card_status = ''
   searchForm.sortBy = 'created_at'
   searchForm.sortOrder = 'desc'
-  searchForm.searchQuery = ''
   currentPage.value = 1
-  fetchShippingList()
+  cursors.value = {}
+  fetchShippingList(1)
 }
 
 // 搜索方法
 const handleSearch = () => {
   currentPage.value = 1
-  fetchShippingList()
-}
-
-// 分页方法
-const handleSizeChange = (val: number) => {
-  pageSize.value = val
-  fetchShippingList()
-}
-
-const handleCurrentChange = (val: number) => {
-  currentPage.value = val
-  fetchShippingList()
+  cursors.value = {}
+  fetchShippingList(1)
 }
 
 // 表格排序变更
@@ -618,261 +529,144 @@ const copyToClipboard = (text: string) => {
     })
 }
 
-// 添加物流信息 - 打开抽屉
-const handleAdd = () => {
-  addDrawerVisible.value = true
-}
-
-// 提交添加表单
-const submitAddForm = async () => {
-  if (!addFormRef.value) return
-  
-  await addFormRef.value.validate(async (valid: boolean) => {
-    if (valid) {
-      addLoading.value = true
-      try {
-        await createShipping(addFormData)
-        ElMessage.success('添加物流信息成功')
-        addDrawerVisible.value = false
-        resetAddForm()
-        fetchShippingList() // 刷新列表
-      } catch (error) {
-        console.error('添加物流信息失败：', error)
-        ElMessage.error('添加物流信息失败')
-      } finally {
-        addLoading.value = false
-      }
-    } else {
-      return false
-    }
-  })
-}
-
-// 重置添加表单
-const resetAddForm = () => {
-  if (!addFormRef.value) return
-  addFormRef.value.resetFields()
-  addFormData.order_id = ''
-  addFormData.tracking_number = ''
-  addFormData.carrier = ''
-  addFormData.status = 'processing'
-  addFormData.estimated_delivery_date = ''
-  addFormData.shipping_address = {
-    recipient_name: '',
-    street_address: '',
-    city: '',
-    state: '',
-    postal_code: '',
-    country: '',
-    phone_number: ''
-  }
-}
-
 // 查看物流信息
 const handleView = async (row: ShippingInfo) => {
+  viewDialogVisible.value = true
+  viewLoading.value = true
   try {
-    const response = await getShippingDetail(row.id)
-    currentViewShipment.value = response.data
-    viewDialogVisible.value = true
-  } catch (error) {
-    console.error('获取物流详情失败：', error)
-    ElMessage.error('获取物流详情失败')
-  }
-}
-
-// 编辑物流信息
-const handleEdit = async (row: ShippingInfo) => {
-  try {
-    const response = await getShippingDetail(row.id)
-    currentEditShipment.value = response.data
+    // Check if this is a shop order by checking the activeTab or searching for 'order_' prefix in ID
+    const isShopOrder = activeTab.value === 'shop' || row.id.startsWith('order_')
     
-    // 填充编辑表单
-    editFormData.tracking_number = response.data.tracking_number
-    editFormData.carrier = response.data.carrier
-    editFormData.status = response.data.status
-    editFormData.estimated_delivery_date = response.data.estimated_delivery_date
-    editFormData.actual_delivery_date = response.data.actual_delivery_date || ''
-    editFormData.shipping_address = { ...response.data.shipping_address }
-    
-    editDrawerVisible.value = true
-  } catch (error) {
-    console.error('获取物流详情失败：', error)
-    ElMessage.error('获取物流详情失败')
-  }
-}
-
-// 提交编辑表单
-const submitEditForm = async () => {
-  if (!editFormRef.value || !currentEditShipment.value) return
-  
-  await editFormRef.value.validate(async (valid: boolean) => {
-    if (valid) {
-      editLoading.value = true
-      try {
-        await updateShipping(currentEditShipment.value.id, editFormData)
-        ElMessage.success('更新物流信息成功')
-        editDrawerVisible.value = false
-        fetchShippingList() // 刷新列表
-      } catch (error) {
-        console.error('更新物流信息失败：', error)
-        ElMessage.error('更新物流信息失败')
-      } finally {
-        editLoading.value = false
-      }
+    let response
+    if (isShopOrder) {
+      response = await getShopOrderDetail(row.user_id, row.id)
     } else {
-      return false
+      response = await getShippingDetail(row.user_id, row.id)
     }
-  })
-}
-
-// 删除物流信息
-const handleDelete = (row: ShippingInfo) => {
-  currentDeleteId.value = row.id
-  deleteDialogVisible.value = true
-}
-
-// 确认删除
-const confirmDelete = async () => {
-  if (!currentDeleteId.value) return
-  
-  try {
-    await deleteShipping(currentDeleteId.value)
-    ElMessage.success('删除物流信息成功')
-    deleteDialogVisible.value = false
-    fetchShippingList() // 刷新列表
+    currentViewShipment.value = response
   } catch (error) {
-    console.error('删除物流信息失败：', error)
-    ElMessage.error('删除物流信息失败')
+    console.error('获取物流详情失败：', error)
+    ElMessage.error('获取物流详情失败')
+  } finally {
+    viewLoading.value = false
   }
 }
 
-// 导出物流信息
-const handleExport = async () => {
-  exportLoading.value = true
+// 更新物流状态
+const handleUpdateStatus = (row: ShippingInfo) => {
+  currentUpdateShipment.value = row
+  updateStatusForm.status = row.status
+  updateStatusForm.card_status = row.card_status || ''
+  updateStatusDialogVisible.value = true
+}
+
+// 确认更新状态
+const confirmUpdateStatus = async () => {
+  if (!currentUpdateShipment.value) return
+  
+  updateStatusLoading.value = true
   try {
-    // 构建查询参数，与当前筛选条件一致
-    const params: any = {
-      sort_by: searchForm.sortBy,
-      sort_order: searchForm.sortOrder,
-      search_query: searchForm.searchQuery
-    }
+    // Detect if this is a shop order
+    const isShopOrder = activeTab.value === 'shop' || currentUpdateShipment.value.id.startsWith('order_')
+    const updateFn = isShopOrder ? updateShopOrderStatus : updateShippingStatus
     
-    // 添加状态筛选
-    if (searchForm.status) {
-      params.status = searchForm.status
-    }
-    
-    // 获取所有数据（不分页）
-    const response = await getShippingList({
-      ...params,
-      page: 1,
-      per_page: 1000 // 设置一个较大的值，获取所有数据
-    })
-    
-    if (!response.data.shipments || response.data.shipments.length === 0) {
-      ElMessage.warning('没有数据可导出')
-      exportLoading.value = false
-      return
-    }
-    
-    // 准备CSV数据
-    const headers = ['物流ID', '订单ID', '追踪号', '物流公司', '状态', '预计送达日期', '实际送达日期', '收件人', '地址', '电话号码', '创建时间', '更新时间']
-    const rows = response.data.shipments.map((item: ShippingInfo) => [
-      item.id,
-      item.order_id,
-      item.tracking_number,
-      item.carrier,
-      getStatusText(item.status),
-      item.estimated_delivery_date,
-      item.actual_delivery_date || '',
-      item.shipping_address.recipient_name,
-      formatAddress(item.shipping_address),
-      item.shipping_address.phone_number,
-      item.created_at,
-      item.updated_at
-    ])
-    
-    // 生成CSV内容
-    let csvContent = headers.join(',') + '\n'
-    rows.forEach(row => {
-      // 处理CSV中的特殊字符
-      const processedRow = row.map(cell => {
-        const cellStr = String(cell)
-        // 如果单元格包含逗号、引号或换行符，则用引号包裹并处理内部引号
-        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
-          return '"' + cellStr.replace(/"/g, '""') + '"'
-        }
-        return cellStr
-      })
-      csvContent += processedRow.join(',') + '\n'
-    })
-    
-    // 创建Blob对象
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    
-    // 创建下载链接
-    const link = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    link.setAttribute('href', url)
-    link.setAttribute('download', `物流信息_${new Date().toISOString().split('T')[0]}.csv`)
-    link.style.visibility = 'hidden'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    
-    ElMessage.success('导出成功')
+    await updateFn(
+      currentUpdateShipment.value.user_id,
+      currentUpdateShipment.value.id,
+      { 
+        status: updateStatusForm.status,
+        card_status: updateStatusForm.card_status || undefined
+      }
+    )
+    ElMessage.success('更新物流状态成功')
+    updateStatusDialogVisible.value = false
+    fetchShippingList(currentPage.value) // 刷新当前页
   } catch (error) {
-    console.error('导出物流信息失败：', error)
-    ElMessage.error('导出物流信息失败')
+    console.error('更新物流状态失败：', error)
+    ElMessage.error('更新物流状态失败')
   } finally {
-    exportLoading.value = false
+    updateStatusLoading.value = false
+  }
+}
+
+// 切换激活状态
+const toggleActiveStatus = async (row: ShippingInfo) => {
+  try {
+    await updateShippingActiveStatus(row.user_id, row.id, !row.is_active)
+    ElMessage.success(`${row.is_active ? '停用' : '激活'}物流成功`)
+    fetchShippingList(currentPage.value) // 刷新当前页
+  } catch (error) {
+    console.error('更新物流激活状态失败：', error)
+    ElMessage.error('更新物流激活状态失败')
+  }
+}
+
+// 归档物流
+const handleArchive = async (row: ShippingInfo) => {
+  try {
+    await archiveShipping(row.user_id, row.id)
+    ElMessage.success('归档成功')
+    fetchShippingList(currentPage.value) // 刷新当前页
+  } catch (error) {
+    console.error('归档失败：', error)
+    ElMessage.error('归档失败')
+  }
+}
+
+// 取消归档物流
+const handleUnarchive = async (row: ShippingInfo) => {
+  try {
+    await unarchiveShipping(row.user_id, row.id)
+    ElMessage.success('取消归档成功')
+    fetchShippingList(currentPage.value) // 刷新当前页
+  } catch (error) {
+    console.error('取消归档失败：', error)
+    ElMessage.error('取消归档失败')
   }
 }
 
 // 初始化
 onMounted(() => {
-  fetchShippingList()
+  fetchShippingList(1)
 })
 
 // 保存状态到localStorage
 onDeactivated(() => {
-  localStorage.setItem('shipping_state', JSON.stringify({
+  localStorage.setItem('shipping_new_state', JSON.stringify({
+    activeStatus: activeStatus.value,
     searchForm: {
       status: searchForm.status,
+      card_status: searchForm.card_status,
       sortBy: searchForm.sortBy,
       sortOrder: searchForm.sortOrder,
-      searchQuery: searchForm.searchQuery
-    },
-    pagination: {
-      currentPage: currentPage.value,
-      pageSize: pageSize.value
+      limit: searchForm.limit
     }
   }))
 })
 
 // 从localStorage恢复状态
 onActivated(() => {
-  const savedState = localStorage.getItem('shipping_state')
+  const savedState = localStorage.getItem('shipping_new_state')
   
   if (savedState) {
     const parsed = JSON.parse(savedState)
     
+    // 恢复激活状态
+    if (parsed.activeStatus) {
+      activeStatus.value = parsed.activeStatus
+    }
+    
     // 恢复搜索表单
     if (parsed.searchForm) {
       searchForm.status = parsed.searchForm.status || ''
+      searchForm.card_status = parsed.searchForm.card_status || ''
       searchForm.sortBy = parsed.searchForm.sortBy || 'created_at'
       searchForm.sortOrder = parsed.searchForm.sortOrder || 'desc'
-      searchForm.searchQuery = parsed.searchForm.searchQuery || ''
-    }
-    
-    // 恢复分页
-    if (parsed.pagination) {
-      currentPage.value = parsed.pagination.currentPage || 1
-      pageSize.value = parsed.pagination.pageSize || 10
+      searchForm.limit = parsed.searchForm.limit || 30
     }
   }
   
-  fetchShippingList()
+  fetchShippingList(1)
 })
 </script>
 
@@ -883,16 +677,21 @@ onActivated(() => {
   }
 
   .table-card {
-    .header-actions {
-      margin-bottom: 16px;
-      display: flex;
-      gap: 10px;
-    }
-
     .pagination-container {
       margin-top: 16px;
       display: flex;
-      justify-content: flex-end;
+      justify-content: center;
+      
+      .pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        
+        .page-info {
+          font-size: 14px;
+          color: #606266;
+        }
+      }
     }
     
     .tracking-number {
@@ -910,6 +709,34 @@ onActivated(() => {
       text-overflow: ellipsis;
       max-width: 200px;
     }
+  }
+  
+  .mt-20 {
+    margin-top: 20px;
+  }
+  
+  .section-header {
+    margin-bottom: 16px;
+    border-bottom: 1px solid #ebeef5;
+    padding-bottom: 10px;
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: bold;
+    }
+  }
+  
+  .tracking-info,
+  .active-status-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .action-area {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
   }
 }
 </style>

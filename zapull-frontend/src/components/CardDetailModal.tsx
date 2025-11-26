@@ -32,9 +32,10 @@ interface CardDetailModalProps {
   collectionName?: string // Collection name
   isOfferView?: boolean // Whether viewing from offer management
   existingOffer?: any // Existing offer data if updating
+  readOnly?: boolean // Hide all purchase/action buttons (view only mode)
 }
 
-export default function CardDetailModal({ card, isOpen, onClose, channel = 'player', onPurchase, listingId, userId, listing, collectionName, isOfferView = false, existingOffer }: CardDetailModalProps) {
+export default function CardDetailModal({ card, isOpen, onClose, channel = 'player', onPurchase, listingId, userId, listing, collectionName, isOfferView = false, existingOffer, readOnly = false }: CardDetailModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const [showOfferModal, setShowOfferModal] = useState(false)
@@ -227,10 +228,10 @@ export default function CardDetailModal({ card, isOpen, onClose, channel = 'play
           onPurchase('points', card)
         }
         
-        // Refresh user data to update points balance
-        await refreshUserData()
-        // Refresh page after closing
-        setTimeout(() => { if (typeof window !== 'undefined') window.location.reload() }, 300)
+          // Refresh user data to update points balance
+          await refreshUserData()
+          // Immediate page refresh - no timeout
+          if (typeof window !== 'undefined') window.location.reload()
       } else {
         // Player channel: buy with points from user listing
         if (!listingId) {
@@ -246,10 +247,10 @@ export default function CardDetailModal({ card, isOpen, onClose, channel = 'play
             onPurchase('points', card)
           }
           
-          // Refresh user data to update points balance
-          await refreshUserData()
-          // Refresh page after closing modal
-          setTimeout(() => { if (typeof window !== 'undefined') window.location.reload() }, 300)
+        // Refresh user data to update points balance
+        await refreshUserData()
+        // Immediate page refresh - no timeout
+        if (typeof window !== 'undefined') window.location.reload()
         } else {
           toast.error(result.message || 'Purchase failed')
         }
@@ -279,6 +280,18 @@ export default function CardDetailModal({ card, isOpen, onClose, channel = 'play
           return
         } catch {}
       }
+      
+      // Check if this is an orphaned listing error
+      if (errorMessage.includes('no longer available') || errorMessage.includes('seller no longer has this card')) {
+        // Close the modal since the listing is gone
+        onClose()
+        // Show error toast and refresh to update listing display
+        toast.error(errorMessage)
+        // Refresh page to remove the invalid listing from view
+        setTimeout(() => { if (typeof window !== 'undefined') window.location.reload() }, 1500)
+        return
+      }
+      
       // Show specific error message
       toast.error(errorMessage)
     } finally {
@@ -339,12 +352,13 @@ export default function CardDetailModal({ card, isOpen, onClose, channel = 'play
     await refreshUserData()
     
     onClose()
-    // Navigate back to marketplace page if not already there
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/marketplace')) {
-      window.location.href = '/marketplace'
-    } else {
-      // Refresh page to update listings and balances
-      setTimeout(() => { if (typeof window !== 'undefined') window.location.reload() }, 300)
+    // Immediate page refresh - no timeout
+    if (typeof window !== 'undefined') {
+      if (!window.location.pathname.includes('/marketplace')) {
+        window.location.href = '/marketplace'
+      } else {
+        window.location.reload()
+      }
     }
   }
   
@@ -480,7 +494,27 @@ export default function CardDetailModal({ card, isOpen, onClose, channel = 'play
   const rarityInfo = getRarityInfo(card.rarity)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 z-50 overflow-y-auto">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-70 z-[60] overflow-y-auto"
+      onClick={(e) => {
+        // Close modal when clicking on backdrop
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
+      }}
+      onWheel={(e) => {
+        // Only allow scrolling within the modal content, not the backdrop
+        if (e.target === e.currentTarget) {
+          e.preventDefault()
+        }
+      }}
+      onTouchMove={(e) => {
+        // Prevent touch scrolling on backdrop for mobile
+        if (e.target === e.currentTarget) {
+          e.preventDefault()
+        }
+      }}
+    >
       <div className="flex min-h-full items-center justify-center p-2 sm:p-4">
         <div 
           ref={modalRef}
@@ -504,18 +538,18 @@ export default function CardDetailModal({ card, isOpen, onClose, channel = 'play
 
         <div className="overflow-y-auto max-h-[65vh] sm:max-h-[calc(90vh-80px)]">
           <div className="p-2 sm:p-6 flex flex-col lg:flex-row gap-3 sm:gap-6">
-            {/* Card image - clickable */}
+            {/* Card image - clickable only when not in readOnly mode */}
             <div
-              className={`w-full lg:w-1/3 aspect-[3/4] max-w-[200px] sm:max-w-[280px] mx-auto lg:mx-0 relative rounded-md overflow-hidden flex-shrink-0 p-3 cursor-pointer hover:scale-105 transition-transform ${fetchingCardDetails ? 'opacity-50' : ''} ${styles.cardImageContainer} ${styles[`imageContainerRarity${card.rarity}`] || 'border border-gray-700'}`}
-              onClick={handleCardImageClick}
+              className={`w-full lg:w-1/3 aspect-[3/4] max-w-[200px] sm:max-w-[280px] mx-auto lg:mx-0 relative rounded-md overflow-hidden flex-shrink-0 p-3 ${!readOnly ? 'cursor-pointer hover:scale-105' : ''} transition-transform ${fetchingCardDetails ? 'opacity-50' : ''} ${styles.cardImageContainer} ${styles[`imageContainerRarity${card.rarity}`] || 'border border-gray-700'}`}
+              onClick={!readOnly ? handleCardImageClick : undefined}
               style={{
                 background:
-                  'linear-gradient(135deg, rgba(42,43,71,0.95) 0%, rgba(30,31,53,0.95) 100%), \
-radial-gradient(2px 2px at 20% 25%, rgba(255,255,255,0.12) 50%, transparent 51%), \
-radial-gradient(1.5px 1.5px at 70% 35%, rgba(255,255,255,0.10) 50%, transparent 51%), \
-radial-gradient(1.5px 1.5px at 40% 80%, rgba(255,255,255,0.10) 50%, transparent 51%), \
-radial-gradient(2px 2px at 85% 60%, rgba(255,255,255,0.12) 50%, transparent 51%), \
-radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)'
+                  'linear-gradient(135deg, rgba(42,43,71,0.95) 0%, rgba(30,31,53,0.95) 100%), ' +
+                  'radial-gradient(2px 2px at 20% 25%, rgba(255,255,255,0.12) 50%, transparent 51%), ' +
+                  'radial-gradient(1.5px 1.5px at 70% 35%, rgba(255,255,255,0.10) 50%, transparent 51%), ' +
+                  'radial-gradient(1.5px 1.5px at 40% 80%, rgba(255,255,255,0.10) 50%, transparent 51%), ' +
+                  'radial-gradient(2px 2px at 85% 60%, rgba(255,255,255,0.12) 50%, transparent 51%), ' +
+                  'radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)'
               }}
             >
               {card.image_url ? (
@@ -531,12 +565,14 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
                   无图片
                 </div>
               )}
-              {/* Click indicator */}
-              <div className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 opacity-0 hover:opacity-100 transition-opacity">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                </svg>
-              </div>
+              {/* Click indicator - only show when not readOnly */}
+              {!readOnly && (
+                <div className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 opacity-0 hover:opacity-100 transition-opacity">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                </div>
+              )}
             </div>
 
             {/* Card details and purchase options container */}
@@ -582,7 +618,7 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
               {/* Purchase options */}
               <div className="w-full lg:w-1/3 flex-shrink-0 space-y-2 sm:space-y-4">
                 {/* Points purchase option - available for all channels when point_worth > 0 */}
-                {card.point_worth > 0 && (
+                {!readOnly && card.point_worth > 0 && (
                   <div className="bg-gray-800 rounded-md p-2 sm:p-4">
                     <div className="flex items-center justify-between mb-1.5 sm:mb-3">
                       <span className="text-orange-400 text-sm sm:text-lg font-bold">● {card.point_worth}</span>
@@ -620,7 +656,7 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
                 )}
 
                 {/* Cash purchase option - only for player channel and cash_worth > 0 */}
-                {channel === 'player' && card.cash_worth && card.cash_worth > 0 && (
+                {!readOnly && channel === 'player' && card.cash_worth && card.cash_worth > 0 && (
                   <div className="bg-gray-800 rounded-md p-2 sm:p-4">
                     <div className="flex items-center justify-between mb-1.5 sm:mb-3">
                       <span className="text-green-400 text-sm sm:text-lg font-bold">${card.cash_worth.toFixed(2)}</span>

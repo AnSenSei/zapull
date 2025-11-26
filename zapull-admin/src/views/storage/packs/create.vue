@@ -58,6 +58,14 @@
           </el-select>
         </el-form-item>
         
+        <el-form-item label="类型" prop="type">
+          <el-select v-model="form.type" placeholder="请选择类型">
+            <el-option label="CN" value="CN" />
+            <el-option label="JP" value="JP" />
+            <el-option label="US" value="US" />
+          </el-select>
+        </el-form-item>
+        
         <el-form-item label="卡包图片" prop="image_file">
           <el-upload
             class="avatar-uploader"
@@ -104,6 +112,7 @@ const form = ref<CreatePackParams>({
   min_win: 0,
   popularity: '',
   separation: 'other',
+  type: 'US',  // Default to US
   image_file: ''
 })
 

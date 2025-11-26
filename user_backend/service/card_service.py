@@ -360,524 +360,6 @@ async def draw_card_from_pack(collection_id: str, pack_id: str, db_client: Async
         raise HTTPException(status_code=500, detail=f"Failed to draw card from pack '{pack_id}' in collection '{collection_id}': {str(e)}")
 
 
-async def draw_multiple_cards_from_pack(collection_id: str, pack_id: str, user_id: str, db_client: AsyncClient,
-                                        count: int = 5) -> list:
-    """
-    Draw multiple cards (1,5 or 10) from a pack based on probabilities.
-
-    This function:
-    1. Gets all probabilities from cards.values() in the pack
-    2. Randomly chooses multiple card ids based on these probabilities
-    3. Retrieves the card information from the cards subcollection for each card
-    4. Logs the card information and returns the list of drawn cards
-    5. Increments the popularity field of the pack by the number of cards drawn
-
-    Args:
-        collection_id: The ID of the collection containing the pack
-        pack_id: The ID of the pack to draw from
-        user_id: The ID of the user (used only for validation)
-        db_client: Firestore client
-        count: The number of cards to draw (default: 1, should be 1, 3 or 5)
-
-    Returns:
-        A list of dictionaries containing the drawn card data
-
-    Raises:
-        HTTPException: If there's an error drawing the cards
-    """
-    try:
-        # Validate count parameter
-        if count not in [1, 3, 5]:
-            logger.error(f"Invalid count parameter: {count}. Must be 1, 3 or 5.")
-            raise HTTPException(status_code=400, detail=f"Invalid count parameter: {count}. Must be 1, 3 or 5.")
-
-        logger.info(f"Drawing {count} cards from pack '{pack_id}' in collection '{collection_id}' for user '{user_id}'")
-
-        # Check if user exists
-        user_ref = db_client.collection(settings.firestore_collection_users).document(user_id)
-        user_doc = await user_ref.get()
-        if not user_doc.exists:
-            raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
-
-        # Get user data
-        user_data = user_doc.to_dict()
-        user_points_balance = user_data.get('pointsBalance', 0)
-
-        # Construct the reference to the pack document
-        pack_ref = db_client.collection('packs').document(collection_id).collection(collection_id).document(pack_id)
-
-        # Check if pack exists
-        pack_snap = await pack_ref.get()
-        if not pack_snap.exists:
-            logger.error(f"Pack not found: {pack_id} in collection {collection_id}")
-            raise HTTPException(status_code=404, detail=f"Pack '{pack_id}' not found in collection '{collection_id}'")
-
-        # Get the cards map from the pack document
-        pack_data = pack_snap.to_dict()
-        cards_map = pack_data.get('cards', {})
-
-        # Check if user has enough points to draw the requested number of cards
-        pack_price = pack_data.get('price', 0)
-        total_price = pack_price * count
-
-        if user_points_balance < total_price:
-            logger.error(
-                f"User '{user_id}' has insufficient points balance ({user_points_balance}) to draw {count} cards (cost: {total_price})")
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient points balance. You have {user_points_balance} points, but need {total_price} points to draw {count} cards."
-            )
-
-        if not cards_map:
-            logger.error(f"No cards found in pack '{pack_id}' in collection '{collection_id}'")
-            raise HTTPException(status_code=404,
-                                detail=f"No cards found in pack '{pack_id}' in collection '{collection_id}'")
-
-        # Get all probabilities from the cards map
-        card_ids = list(cards_map.keys())
-        probabilities = list(cards_map.values())
-
-        # Check if there are enough cards in the pack
-        if len(card_ids) < count:
-            logger.warning(
-                f"Not enough cards in pack '{pack_id}' in collection '{collection_id}'. Requested {count} but only {len(card_ids)} available.")
-            # We'll still draw as many as possible, but with replacement
-
-        # 3. Get clientSeed and nonce from user data
-        user_doc_ref = db_client.collection(settings.firestore_collection_users).document(user_id)
-        
-        # Get user data (using different variable to preserve original user_data)
-        user_snap = await user_doc_ref.get()
-        user_data_for_nonce = user_snap.to_dict()
-        client_seed = user_data_for_nonce.get('clientSeed')
-        old_nonce = user_data_for_nonce.get('nonceCounter', 0)
-        nonce = old_nonce + 1
-
-        # Update counter in a transaction
-        @firestore.async_transactional
-        async def _txn(tx: firestore.AsyncTransaction):
-            tx.update(user_doc_ref, {'nonceCounter': firestore.Increment(count)})
-
-        # Execute the transaction
-        txn = db_client.transaction()
-        await _txn(txn)
-        logger.info(f"Retrieved client seed '{client_seed}' and nonce {nonce} for user '{user_id}'")
-
-        # 4. Provably fair seeds and proof
-        server_seed = secrets.token_hex(32)
-        server_seed_hash = hashlib.sha256(server_seed.encode()).hexdigest()
-        # Compute HMAC for the batch
-        payload = f"{client_seed}{nonce}".encode()
-        random_hash = hmac.new(server_seed.encode(), payload, hashlib.sha256).hexdigest()
-        logger.info(
-            f"Generated server seed '{server_seed}' with hash '{server_seed_hash}' and random hash '{random_hash}'")
-
-        # 5. Perform deterministic draw using Python RNG seeded by random_hash
-        random.seed(int(random_hash, 16))
-        chosen_card_ids = random.choices(card_ids, weights=probabilities, k=count)
-        logger.info(f"Deterministically selected {count} cards from pack '{pack_id}' in collection '{collection_id}'")
-
-        # 6. Insert into SQL tables
-        opening_id = None
-        try:
-            with db_connection() as conn:
-                cursor = conn.cursor()
-                # pack_openings
-                # Store the pack name (fallback to pack_id if missing) for pull history readability
-                pack_name = pack_data.get('name', pack_id)
-                cursor.execute(
-                    """
-                    INSERT INTO pack_openings (user_id, pack_type, pack_count, price_points,
-                                               client_seed, nonce, server_seed_hash, server_seed, random_hash)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-                    """,
-                    (user_id, pack_name, count, total_price,
-                     client_seed, nonce, server_seed_hash, server_seed, random_hash)
-                )
-                opening_id = cursor.fetchone()[0]
-
-                # transactions
-                cursor.execute(
-                    """
-                    INSERT INTO transactions (user_id, type, points_delta, reference_id)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (user_id, 'pack_open', -total_price, str(opening_id))
-                )
-                conn.commit()
-                logger.info(f"Inserted pack opening record with ID {opening_id} and transaction record")
-        except Exception as e:
-            logger.error(f"Failed to insert SQL records: {e}")
-            # Continue even if SQL insertion fails
-
-        # List to store all drawn cards data for adding to user
-        cards_to_add = []
-
-        # Pre-fetch card data outside the transaction
-        for chosen_card_id in chosen_card_ids:
-            # Get the card information from the cards subcollection
-            card_ref = pack_ref.collection('cards').document(chosen_card_id)
-            card_snap = await card_ref.get()
-
-            if not card_snap.exists:
-                logger.error(f"Card '{chosen_card_id}' not found in pack '{pack_id}' in collection '{collection_id}'")
-                # Skip this card and continue with others
-                continue
-
-            # Get the card data
-            card_data = card_snap.to_dict()
-
-            # Get card reference from the card data - it might be a Firestore reference
-            card_reference = card_data.get('card_reference', '')
-            
-            # Convert Firestore reference to string if needed
-            if hasattr(card_reference, 'path'):
-                card_reference = card_reference.path
-            elif hasattr(card_reference, '_document_path'):
-                card_reference = card_reference._document_path
-            elif not isinstance(card_reference, str):
-                card_reference = str(card_reference)
-            
-            if not card_reference:
-                logger.warning(f"Card {chosen_card_id} has no card_reference")
-                continue
-                
-            # Remove leading slash if present (card_reference might be "/collection/card_id")
-            if card_reference.startswith('/'):
-                card_reference = card_reference[1:]
-            
-            # Add card to the list of cards to add to user
-            cards_to_add.append({
-                'card_reference': card_reference,
-                'collection_id': collection_id,
-                'card_id': chosen_card_id
-            })
-
-        if not cards_to_add:
-            raise HTTPException(status_code=404,
-                                detail=f"No valid cards found in pack '{pack_id}' in collection '{collection_id}'")
-
-        # Helper function to convert Firestore references to strings
-        def convert_references_to_strings(data):
-            if isinstance(data, dict):
-                result = {}
-                for key, value in data.items():
-                    # Check for Firestore reference by checking for path attribute or _document_path attribute
-                    if hasattr(value, 'path') and callable(getattr(value, 'path', None)):
-                        # This is likely a Firestore reference with a callable path method
-                        result[key] = str(value.path)
-                    elif hasattr(value, '_document_path'):
-                        # This is likely a Firestore reference with a _document_path attribute
-                        result[key] = str(value._document_path)
-                    elif str(type(value)).find('google.cloud.firestore_v1.async_document.AsyncDocumentReference') != -1:
-                        # Direct check for AsyncDocumentReference type
-                        result[key] = str(value)
-                    elif isinstance(value, (dict, list)):
-                        result[key] = convert_references_to_strings(value)
-                    else:
-                        result[key] = value
-                return result
-            elif isinstance(data, list):
-                return [convert_references_to_strings(item) for item in data]
-            else:
-                # Check if the data itself is a Firestore reference
-                if hasattr(data, 'path') and callable(getattr(data, 'path', None)):
-                    return str(data.path)
-                elif hasattr(data, '_document_path'):
-                    return str(data._document_path)
-                elif str(type(data)).find('google.cloud.firestore_v1.async_document.AsyncDocumentReference') != -1:
-                    return str(data)
-                return data
-
-        # Create a list of drawn cards with detailed information
-        drawn_cards = []
-        processed_urls = {}  # Cache to avoid regenerating the same URL multiple times in this request
-        
-        for index, card_data in enumerate(cards_to_add, 1):
-            # Get the card information from the cards subcollection
-            card_ref = pack_ref.collection('cards').document(card_data['card_id'])
-            card_snap = await card_ref.get()
-            card_dict = card_snap.to_dict()
-
-            # Convert any Firestore references to strings
-            card_dict = convert_references_to_strings(card_dict)
-
-            # Ensure card_reference is a string
-            if 'card_reference' in card_data and not isinstance(card_data['card_reference'], str):
-                card_data['card_reference'] = convert_references_to_strings(card_data['card_reference'])
-
-            # Check and cache signed URL for the card image
-            image_url = card_dict.get('image_url', '')
-            if image_url:
-                # Check if we've already processed this card in this request
-                card_cache_key = f"{card_data['card_id']}_{image_url}"
-                if card_cache_key in processed_urls:
-                    card_dict['image_url'] = processed_urls[card_cache_key]
-                else:
-                    try:
-                        # R2 URLs are public; no signing required. Just reuse the URL.
-                        signed_url = image_url
-                        card_dict['image_url'] = signed_url
-                        processed_urls[card_cache_key] = signed_url
-                    except Exception as e:
-                        logger.error(f"Failed to process image URL {image_url}: {e}")
-                        processed_urls[card_cache_key] = image_url
-
-            # Create a new dictionary with only the fields we need
-            simplified_card = {
-                'id': card_data['card_id'],
-                'collection_id': collection_id,
-                'card_reference': card_data['card_reference'],
-                'image_url': card_dict.get('image_url', ''),
-                'card_name': card_dict.get('card_name', ''),
-                'point_worth': card_dict.get('point_worth', 0),
-                'quantity': card_dict.get('quantity', 0),
-                'rarity': card_dict.get('rarity', 0),
-                'num_draw': index,  # Add the position of the card in the drawing sequence
-                'color': card_dict.get('color', 'white')  # Add the color of the card
-            }
-
-            drawn_cards.append(simplified_card)
-
-        logger.info(f"Successfully drew {len(drawn_cards)} cards from pack '{pack_id}' in collection '{collection_id}'")
-
-        # Increment the popularity field of the pack by the number of cards drawn
-        try:
-            await pack_ref.update({"popularity": Increment(len(drawn_cards))})
-            logger.info(
-                f"Incremented popularity for pack '{pack_id}' in collection '{collection_id}' by {len(drawn_cards)}")
-        except Exception as e:
-            logger.error(f"Failed to increment popularity for pack '{pack_id}' in collection '{collection_id}': {e}")
-            # Continue even if updating popularity fails
-
-        # Increment the total_drawn and totalPointsSpent fields in the user's document by the pack price multiplied by the number of cards drawn
-        # Also deduct the points from the user's balance
-        # Track cards with rarity > 4 and update corresponding fields
-        try:
-            # We already calculated these values earlier
-            # pack_price = pack_data.get('price', 0)
-            # total_price = pack_price * len(drawn_cards)
-
-            # Count cards with point_worth >= certain thresholds
-            point_threshold_counts = {}
-            thresholds = [2000, 5000, 10000, 30000]
-            
-            for card in drawn_cards:
-                point_worth = card.get('point_worth', 0)
-                for threshold in thresholds:
-                    if point_worth >= threshold:
-                        field_name = f"total_drawn_{threshold}"
-                        point_threshold_counts[field_name] = point_threshold_counts.get(field_name, 0) + 1
-
-            # Prepare update data with point threshold counts
-            update_data = {
-                "total_drawn": Increment(total_price),
-                "totalPointsSpent": Increment(total_price),
-                "pointsBalance": Increment(-total_price)  # Deduct points from balance
-            }
-
-            # Add point threshold counts to update data
-            for field_name, count in point_threshold_counts.items():
-                update_data[field_name] = Increment(count)
-                logger.info(f"Incrementing {field_name} for user '{user_id}' by {count}")
-
-            # Handle expensive pack tracking (price > 200)
-            if pack_price > 200:
-                current_time = datetime.now()
-                current_date = current_time.date()
-                
-                # Get current expensive pack tracking data from user
-                last_expensive_draw_time = user_data.get('last_expensive_pack_draw_time')
-                consecutive_days = user_data.get('consecutive_expensive_pack_days', 0)
-                total_draws = user_data.get('total_expensive_pack_draws', 0)
-                
-                # Check if this is a new day since last expensive draw
-                is_new_day = True
-                if last_expensive_draw_time:
-                    if hasattr(last_expensive_draw_time, 'date'):
-                        # It's a datetime object
-                        last_draw_date = last_expensive_draw_time.date()
-                    else:
-                        # It's a Firestore timestamp, convert to local server time
-                        last_draw_date = last_expensive_draw_time.date()
-                    
-                    is_new_day = current_date > last_draw_date
-                    
-                    # Check if consecutive (yesterday or today)
-                    days_diff = (current_date - last_draw_date).days
-                    if days_diff == 0:
-                        # Same day - don't increment counters and don't update timestamp
-                        consecutive_days = consecutive_days  # Keep same
-                    elif days_diff == 1:
-                        # Next day - increment consecutive days
-                        consecutive_days += 1
-                    else:
-                        # Gap in days - reset consecutive to 1
-                        consecutive_days = 1
-                else:
-                    # First time drawing expensive pack
-                    consecutive_days = 1
-                
-                # Only update fields if it's a new day
-                if is_new_day:
-                    update_data["last_expensive_pack_draw_time"] = current_time
-                    update_data["consecutive_expensive_pack_days"] = consecutive_days
-                    update_data["total_expensive_pack_draws"] = Increment(1)
-                    logger.info(f"Expensive pack draw (price: {pack_price}) - New day detected. Consecutive days: {consecutive_days}, Total draws will be incremented")
-                else:
-                    logger.info(f"Expensive pack draw (price: {pack_price}) - Same day as last draw. No fields updated")
-
-            # Use a transaction to ensure atomic points deduction
-            @firestore.async_transactional
-            async def deduct_points_txn(tx: firestore.AsyncTransaction):
-                # Re-check balance inside transaction to prevent race condition
-                user_doc_tx = await user_ref.get(transaction=tx)
-                if not user_doc_tx.exists:
-                    raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
-                
-                user_data_tx = user_doc_tx.to_dict()
-                current_balance = user_data_tx.get('pointsBalance', 0)
-                
-                if current_balance < total_price:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Insufficient points balance. You have {current_balance} points, but need {total_price} points to draw {count} cards."
-                    )
-                
-                # Update user stats with points deduction
-                tx.update(user_ref, update_data)
-            
-            # Execute the transaction
-            txn = db_client.transaction()
-            await deduct_points_txn(txn)
-
-            logger.info(
-                f"Incremented total_drawn and totalPointsSpent for user '{user_id}' by pack price ({pack_price}) * number of cards drawn ({len(drawn_cards)}) = {total_price}")
-            logger.info(
-                f"Deducted {total_price} points from user '{user_id}' balance. New balance: {user_points_balance - total_price}")
-
-            # Update weekly_spent collection (skip for challenger1 to challenger100 users)
-            # Check if user_id matches challenger pattern (challenger1 to challenger100)
-            is_challenger = False
-            if user_id.startswith('challenger'):
-                try:
-                    # Extract the number part after 'challenger'
-                    challenger_suffix = user_id[10:]
-                    if challenger_suffix.isdigit():
-                        challenger_num = int(challenger_suffix)
-                        if 1 <= challenger_num <= 100:
-                            is_challenger = True
-                            logger.warning(f"CHALLENGER DETECTED: Skipping weekly_spent update for user {user_id} (number: {challenger_num})")
-                        else:
-                            logger.info(f"Challenger user {user_id} with number {challenger_num} is outside range 1-100, will update weekly_spent")
-                    else:
-                        logger.info(f"User {user_id} starts with 'challenger' but suffix '{challenger_suffix}' is not a digit, will update weekly_spent")
-                except Exception as e:
-                    logger.error(f"Error parsing challenger user_id {user_id}: {e}, will update weekly_spent")
-            
-            if not is_challenger:
-                try:
-                    # Get the current week's start date (Monday)
-                    today = datetime.now()
-                    start_of_week = today - timedelta(days=today.weekday())
-                    week_id = start_of_week.strftime("%Y-%m-%d")
-
-                    # Reference to the weekly_spent collection and this week's document
-                    weekly_spent_ref = db_client.collection('weekly_spent').document('weekly_spent').collection(
-                        week_id).document(user_id)
-                    weekly_doc = await weekly_spent_ref.get()
-
-                    if weekly_doc.exists:
-                        # Update existing document
-                        await weekly_spent_ref.update({
-                            "spent": Increment(total_price),
-                            "displayName": user_data.get('displayName', user_id),
-                            "avatar": user_data.get('avatar', ''),
-                            "updatedAt": SERVER_TIMESTAMP
-                        })
-                    else:
-                        # Create new document
-                        await weekly_spent_ref.set({
-                            "spent": total_price,
-                            "displayName": user_data.get('displayName', user_id),
-                            "avatar": user_data.get('avatar', ''),
-                            "updatedAt": SERVER_TIMESTAMP
-                        })
-                    logger.info(f"Updated weekly_spent for user '{user_id}' with {total_price} points")
-                except Exception as e:
-                    logger.error(f"Failed to update weekly_spent for user '{user_id}': {e}")
-                    # Continue even if updating weekly_spent fails
-        except Exception as e:
-            logger.error(f"Failed to increment total_drawn and totalPointsSpent for user '{user_id}': {e}")
-            # Continue even if updating total_drawn and totalPointsSpent fails
-
-        # Add provably fair information to the response (once for the entire draw)
-        provably_fair_info = {
-            "server_seed_hash": server_seed_hash,
-            "server_seed": server_seed,  # Include actual server seed for verification
-            "client_seed": client_seed,
-            "nonce": nonce,
-            "random_hash": random_hash,  # Include the computed random hash
-            "opening_id": opening_id
-        }
-
-        # Calculate and update user's level after drawing cards
-        try:
-            await calculate_and_update_level(user_id, db_client)
-            logger.info(f"Updated level for user '{user_id}' after drawing cards")
-        except Exception as e:
-            logger.error(f"Failed to update level for user '{user_id}': {e}")
-            # Continue even if updating level fails
-
-        # Add each drawn card to the user's collection
-        for card_data in cards_to_add:
-            try:
-                await add_card_to_user(
-                    user_id=user_id,
-                    card_reference=card_data['card_reference'],
-                    db_client=db_client,
-                    collection_metadata_id=collection_id
-                )
-                logger.info(f"Added card {card_data['card_id']} to user {user_id}'s collection")
-            except Exception as e:
-                logger.error(f"Failed to add card {card_data['card_id']} to user {user_id}: {e}")
-                # Continue with other cards even if one fails
-
-        # Add selected color cards (purple, orange, red) to top_hits
-        for card in drawn_cards:
-            card_color = str(card.get('color', '')).lower()
-            if card_color in {'purple', 'orange', 'red'}:
-                try:
-                    # Get user display name
-                    display_name = user_data.get('displayName', user_id)
-                    
-                    # Call add_to_top_hits
-                    await add_to_top_hits(
-                        user_id=user_id,
-                        display_name=display_name,
-                        card_reference=card.get('card_reference'),
-                        db_client=db_client,
-                        pack_id=pack_id,
-                        collection_id=collection_id
-                    )
-                    logger.info(f"Added card {card.get('id')} with color {card_color} to top_hits for user {user_id}")
-                except Exception as e:
-                    logger.error(f"Failed to add card {card.get('id')} to top_hits: {e}")
-                    # Continue even if adding to top_hits fails
-
-        return {
-            "cards": drawn_cards,
-            "provably_fair_info": provably_fair_info
-        }
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(
-            f"Error drawing multiple cards from pack '{pack_id}' in collection '{collection_id}' for user '{user_id}': {e}",
-            exc_info=True)
-        raise HTTPException(status_code=500,
-                            detail=f"Failed to draw multiple cards from pack '{pack_id}' in collection '{collection_id}': {str(e)}")
-
 
 async def draw_multiple_cards_from_pack_optimized(
     collection_id: str, 
@@ -940,8 +422,6 @@ async def draw_multiple_cards_from_pack_optimized(
         user_data = user_doc.to_dict()
         user_points_balance = user_data.get('pointsBalance', 0)
         client_seed = user_data.get('clientSeed')
-        old_nonce = user_data.get('nonceCounter', 0)
-        nonce = old_nonce + 1
 
         # Get pack data
         pack_data = pack_snap.to_dict()
@@ -949,7 +429,7 @@ async def draw_multiple_cards_from_pack_optimized(
         pack_price = pack_data.get('price', 0)
         total_price = pack_price * count
 
-        # Check points balance
+        # Check points balance (preliminary check - will be rechecked in transaction)
         if user_points_balance < total_price:
             logger.error(f"User '{user_id}' has insufficient points balance ({user_points_balance}) to draw {count} cards (cost: {total_price})")
             raise HTTPException(
@@ -965,25 +445,44 @@ async def draw_multiple_cards_from_pack_optimized(
         card_ids = list(cards_map.keys())
         probabilities = list(cards_map.values())
 
-        # Update nonce counter
+        # Atomically read and increment nonce counter to prevent race condition
         @firestore.async_transactional
-        async def update_nonce(tx: firestore.AsyncTransaction):
+        async def get_and_update_nonce(tx: firestore.AsyncTransaction):
+            user_doc_tx = await user_ref.get(transaction=tx)
+            if not user_doc_tx.exists:
+                raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
+            user_data_tx = user_doc_tx.to_dict()
+            old_nonce = user_data_tx.get('nonceCounter', 0)
+            nonce = old_nonce + 1
             tx.update(user_ref, {'nonceCounter': firestore.Increment(count)})
+            return nonce
 
-        # Execute the transaction
+        # Execute the transaction and get the nonce
         txn = db_client.transaction()
-        await update_nonce(txn)
-        logger.info(f"Updated nonce counter for user '{user_id}'")
+        nonce = await get_and_update_nonce(txn)
+        logger.info(f"Atomically retrieved and updated nonce counter for user '{user_id}', nonce: {nonce}")
 
-        # Provably fair random selection
+        # Provably fair random selection - generate individual seed per card
         server_seed = secrets.token_hex(32)
         server_seed_hash = hashlib.sha256(server_seed.encode()).hexdigest()
-        payload = f"{client_seed}{nonce}".encode()
-        random_hash = hmac.new(server_seed.encode(), payload, hashlib.sha256).hexdigest()
         
-        random.seed(int(random_hash, 16))
-        chosen_card_ids = random.choices(card_ids, weights=probabilities, k=count)
-        logger.info(f"Deterministically selected {count} cards from pack '{pack_id}' in collection '{collection_id}': {chosen_card_ids}")
+        chosen_card_ids = []
+        random_hashes = []
+        
+        # Draw each card with its own nonce for proper provably fair verification
+        for i in range(count):
+            current_nonce = nonce + i
+            payload = f"{client_seed}{current_nonce}".encode()
+            random_hash = hmac.new(server_seed.encode(), payload, hashlib.sha256).hexdigest()
+            random_hashes.append(random_hash)
+            
+            # Use a local Random instance to avoid affecting global random state
+            rng = random.Random(int(random_hash, 16))
+            chosen_card_id = rng.choices(card_ids, weights=probabilities, k=1)[0]
+            chosen_card_ids.append(chosen_card_id)
+            
+        nonce_end = nonce + count - 1
+        logger.info(f"Deterministically selected {count} cards from pack '{pack_id}' using nonces {nonce}-{nonce_end}: {chosen_card_ids}")
 
         # Insert SQL records (non-blocking)
         opening_id = None
@@ -992,14 +491,20 @@ async def draw_multiple_cards_from_pack_optimized(
                 cursor = conn.cursor()
                 # Store the pack name (fallback to pack_id if missing) for pull history readability
                 pack_name = pack_data.get('name', pack_id)
+                
+                # Import json for JSONB storage
+                import json
+                
                 cursor.execute(
                     """
                     INSERT INTO pack_openings (user_id, pack_type, pack_count, price_points,
-                                               client_seed, nonce, server_seed_hash, server_seed, random_hash)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                                               client_seed, nonce, nonce_end, server_seed_hash, server_seed, 
+                                               random_hash, random_hashes)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
                     """,
                     (user_id, pack_name, count, total_price,
-                     client_seed, nonce, server_seed_hash, server_seed, random_hash)
+                     client_seed, nonce, nonce_end, server_seed_hash, server_seed, 
+                     random_hashes[0], json.dumps(random_hashes))  # Store first hash in random_hash for backward compat
                 )
                 opening_id = cursor.fetchone()[0]
                 
@@ -1223,7 +728,9 @@ async def draw_multiple_cards_from_pack_optimized(
                     logger.error(f"Error parsing challenger user_id {user_id}: {e}, will update weekly_spent")
             
             try:
-                today = datetime.now()
+                from zoneinfo import ZoneInfo
+                eastern_tz = ZoneInfo("America/New_York")
+                today = datetime.now(eastern_tz)
                 start_of_week = today - timedelta(days=today.weekday())
                 week_id = start_of_week.strftime("%Y-%m-%d")
                 
@@ -1407,14 +914,18 @@ async def draw_multiple_cards_from_pack_optimized(
                 task_names = ['pack_popularity', 'weekly_spent', 'level_calculation', 'top_hits']
                 logger.error(f"Non-critical task {task_names[i]} failed: {result}")
 
-        # Prepare response
+        # Prepare response with detailed provably fair info
         provably_fair_info = {
             "server_seed_hash": server_seed_hash,
             "server_seed": server_seed,
             "client_seed": client_seed,
+            "nonce_start": nonce,
+            "nonce_end": nonce_end,
+            "random_hashes": random_hashes,  # Array of hashes, one per card
+            "opening_id": opening_id,
+            # Backward compatibility
             "nonce": nonce,
-            "random_hash": random_hash,
-            "opening_id": opening_id
+            "random_hash": random_hashes[0]
         }
 
         return {
@@ -1648,11 +1159,11 @@ async def draw_daily_free_box(user_id: str, db_client: AsyncClient) -> dict:
     pack_id = "8e03ce64-8111-45f6-aed4-d516c1b00755"
     collection_id = "pokemon"
     
-    # Check if the user has already claimed the daily free box today (using US Central time)
-    us_central = ZoneInfo("America/Chicago")
-    today_central_dt = datetime.now(us_central)
-    today_central = today_central_dt.strftime('%Y%m%d')
-    claim_doc_id = f"{user_id}_{today_central}"
+    # Check if the user has already claimed the daily free box today (using Eastern time)
+    eastern_tz = ZoneInfo("America/New_York")
+    today_eastern_dt = datetime.now(eastern_tz)
+    today_eastern = today_eastern_dt.strftime('%Y%m%d')
+    claim_doc_id = f"{user_id}_{today_eastern}"
     claim_ref = db_client.collection("dailyDrawClaims").document(claim_doc_id)
     
     claim_doc = await claim_ref.get()
@@ -1709,8 +1220,8 @@ async def draw_daily_free_box(user_id: str, db_client: AsyncClient) -> dict:
         logger.warning(f"Card {drawn_card_id} has no point_worth value, no points added")
     
     # Create the claim document in Firestore with 2-day expiration
-    # Calculate expiration time (2 days from now in US Central timezone)
-    expiration_time = today_central_dt + timedelta(days=2)
+    # Calculate expiration time (2 days from now in Eastern timezone)
+    expiration_time = today_eastern_dt + timedelta(days=2)
     
     await claim_ref.set({
         "userId": user_id,

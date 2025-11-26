@@ -67,6 +67,7 @@ async def create_pack_in_firestore(
     is_active = pack_data.is_active
     popularity = pack_data.popularity
     separation = pack_data.separation
+    pack_type = pack_data.type if pack_data.type else "US"
 
     if not pack_name:
         raise HTTPException(status_code=400, detail="Pack name cannot be empty.")
@@ -166,6 +167,7 @@ async def create_pack_in_firestore(
             "is_active": is_active,
             "popularity": popularity,
             "separation": separation,
+            "type": pack_type,
         }
         if image_gcs_uri_for_firestore:
             pack_doc_data["image_url"] = image_gcs_uri_for_firestore
@@ -302,7 +304,8 @@ async def get_cached_card_packs(collection_id: str, db_client: firestore.AsyncCl
             price=data.get("price"),
             created_at=data.get("created_at"),
             is_active=data.get("is_active", True),
-            separation=data.get("separation", "other")  # Default to "other" if not specified
+            separation=data.get("separation", "other"),  # Default to "other" if not specified
+            type=data.get("type", "US")  # Default to "US" if not specified
         ))
 
     # 更新缓存
@@ -509,6 +512,7 @@ async def _process_pack_document(doc_snapshot, db_client, collection_id):
             created_at=pack_data.get('created_at'),
             is_active=pack_data.get('is_active'),
             separation=pack_data.get('separation', 'other'),  # Default to "other" if not specified
+            type=pack_data.get('type', 'US'),  # Default to "US" if not specified
             rarity_configurations=rarity_configurations # Add fetched rarities
         )
     except Exception as e:

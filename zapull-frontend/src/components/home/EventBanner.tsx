@@ -16,38 +16,13 @@ export default function EventBanner({ isMobile }: EventBannerProps) {
   const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false)
   
   // Use actual files under public/event
-  const pcFileNames = ['event1.webp', 'challenge.webp', 'box_chanllange.webp', 'event3.webp']
-  const mobileFileNames = ['event1.webp', 'challenge_mobile.webp', 'box_chanllange.webp', 'event3.webp']
+  // Updated: Add shop.webp as first event (position 1) and move existing events to positions 2, 3, 4
+  const pcFileNames = ['shop.webp', 'event1.webp', 'offcial_event.webp', 'whatnot.webp']
+  const mobileFileNames = ['shop.webp', 'event1.webp', 'offcial_event.webp', 'whatnot.webp']
   const pcBannerImages = pcFileNames.map(n => `/event/pc_event/${n}`)
   const mobileBannerImages = mobileFileNames.map(n => `/event/mobile/${n}`)
   const currentBannerImages = isMobile ? mobileBannerImages : pcBannerImages
   const [bannerIndex, setBannerIndex] = useState(0)
-  const [imagesLoaded, setImagesLoaded] = useState<Set<string>>(new Set())
-
-  // Preload banner images for better performance
-  useEffect(() => {
-    const preloadImages = async () => {
-      const promises = currentBannerImages.map(src => {
-        return new Promise<string>((resolve, reject) => {
-          const img = document.createElement('img')
-          img.onload = () => {
-            setImagesLoaded(prev => new Set(prev).add(src))
-            resolve(src)
-          }
-          img.onerror = reject
-          img.src = src
-        })
-      })
-      
-      try {
-        await Promise.allSettled(promises)
-      } catch (error) {
-        console.warn('Some banner images failed to preload:', error)
-      }
-    }
-
-    preloadImages()
-  }, [currentBannerImages])
 
   // Auto-rotate banner carousel
   useEffect(() => {
@@ -77,28 +52,28 @@ export default function EventBanner({ isMobile }: EventBannerProps) {
             {/* Foreground crisp image without cropping; first slide shows CTA buttons */}
             <div
               className={`absolute inset-0 p-0 ${i === 0 || i === 1 || i === 2 || i === 3 ? 'cursor-pointer' : ''}`}
-              onClick={() => { 
+              onClick={(e) => {
                 if (i === 0) { 
-                  openRegisterModal(); 
+                  // Shop banner: Redirect to shop page
+                  router.push('/shop');
                 } else if (i === 1) { 
-                  // Challenge banner: Redirect to Discord
-                  window.open('https://discord.gg/WjjHxsjCrm', '_blank');
+                  openRegisterModal(); 
                 } else if (i === 2) { 
-                  // Box challenge banner: Redirect to Discord
-                  window.open('https://discord.gg/WjjHxsjCrm', '_blank');
+                  // Official event banner: Redirect to official-packs page
+                  router.push('/official-packs');
                 } else if (i === 3) { 
-                  router.push('/events'); 
+                  // Whatnot banner: Redirect to Whatnot profile
+                  window.open('https://www.whatnot.com/user/zapull', '_blank');
                 }
-              }}
-            >
+              }}>
               <Image 
                 src={src} 
                 alt={`Event banner ${i + 1}`} 
                 fill 
                 priority={i === 0} // Priority for first image
-                className={`object-cover transition-opacity duration-300 ${imagesLoaded.has(src) ? 'opacity-100' : 'opacity-0'}`}
+                className="object-cover"
               />
-              {i === 0 && (
+              {i === 1 && (
                 <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-3 z-10">
                   <button
                     type="button"

@@ -206,6 +206,14 @@ async def get_official_listings_for_marketplace(
         # Convert to OfficialListingCardInfo objects for response
         cards_response = []
         for card in paginated_cards:
+            # Calculate priceCash if not present
+            price_points = card.get("pricePoints", 0)
+            price_cash = card.get("priceCash")
+            
+            # If priceCash is not set, calculate it from pricePoints
+            if price_cash is None:
+                price_cash = round(price_points / 100.0, 2) if price_points > 0 else 0.0
+            
             # The image_url should already have a cached signed URL from get_all_official_listings
             card_info = OfficialListingCardInfo(
                 id=card.get("id", ""),
@@ -216,7 +224,8 @@ async def get_official_listings_for_marketplace(
                 date_got_in_stock=card.get("date_got_in_stock", ""),
                 date_got_in_stock_unix=card.get("date_got_in_stock_unix"),
                 image_url=card.get("image_url", ""),  # Already processed by storage service
-                pricePoints=card.get("pricePoints", 0),
+                pricePoints=price_points,
+                priceCash=price_cash,
                 quantity=card.get("quantity", 0),
                 rarity=card.get("rarity", 1)
             )

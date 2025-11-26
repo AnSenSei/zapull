@@ -27,6 +27,7 @@ export interface PackDetail {
   created_at: string
   is_active: boolean | null
   separation?: string
+  type?: string  // Pack type: CN, JP, or US
 }
 
 // 卡片类型定义
@@ -138,6 +139,7 @@ export interface CreatePackParams {
   min_win?: number
   popularity?: string
   separation?: string
+  type?: string  // Pack type: CN, JP, or US (default: US)
   image_file?: string
 }
 

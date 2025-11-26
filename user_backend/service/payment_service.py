@@ -7,6 +7,8 @@ import json
 import hashlib
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from shippo import Shippo
+from shippo.models import components
 
 from config import get_logger, settings, execute_query
 from service.card_service import add_card_to_user
@@ -14,6 +16,7 @@ from service.account_service import add_points_and_update_cash_recharged, get_us
 from service.marketplace_service import send_item_sold_email
 from config.db_connection import test_connection, db_connection
 from service.recharge_payment_saga import recharge_payment_saga
+from service.shop_email_service import send_shop_order_receipt_email
 
 
 # Initialize Stripe with the API key from settings
@@ -829,6 +832,38 @@ async def handle_stripe_webhook(request: Request, signature: str, db_client: Asy
 
                 response_data = await handle_payment_succeeded(payment_intent, db_client)
             
+            elif event['type'] == 'checkout.session.completed':
+                # Handle checkout session completion (for manual capture/authorized payments)
+                # If this is a retry, log it
+                if is_retry:
+                    logger.info(f"Processing a retry for checkout.session.completed event. ID: {event['id']}")
+
+                session = event['data']['object']
+                logger.info(f"Processing completed checkout session {session['id']}")
+                
+                # Get the payment intent from the session
+                payment_intent_id = session.get('payment_intent')
+                if payment_intent_id:
+                    # Retrieve the full payment intent details
+                    payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+                    logger.info(f"Retrieved payment intent {payment_intent_id} with status {payment_intent.status}")
+                    
+                    # Handle the payment based on its status
+                    if payment_intent.status == 'requires_capture':
+                        # Manual capture payment - create order in authorized state
+                        logger.info(f"Processing authorized payment {payment_intent.id} - executing business logic")
+                        response_data = await handle_payment_succeeded(payment_intent, db_client)
+                    elif payment_intent.status == 'succeeded':
+                        # Already captured payment - handle normally
+                        logger.info(f"Processing succeeded payment {payment_intent.id} - executing business logic")
+                        response_data = await handle_payment_succeeded(payment_intent, db_client)
+                    else:
+                        logger.warning(f"Payment intent {payment_intent.id} has unexpected status: {payment_intent.status}")
+                        response_data = {"status": "ignored", "reason": f"Unexpected payment status: {payment_intent.status}"}
+                else:
+                    logger.error(f"Checkout session {session['id']} has no payment_intent")
+                    response_data = {"status": "error", "reason": "No payment_intent in session"}
+            
             else:
                 # Unhandled event type - this is not an error, just an event we don't process
                 logger.info(f"Unhandled event type: {event['type']}")
@@ -1334,6 +1369,437 @@ async def handle_marketplace_payment(
         raise HTTPException(
             status_code=500, 
             detail=f"An unexpected error occurred, Stripe should retry this webhook: {str(e)}"
+        )
+
+async def handle_official_shop_purchase(
+    payment_id: str,
+    user_id: str,
+    amount: int,
+    amount_dollars: float,
+    metadata: Dict[str, Any],
+    db_client: AsyncClient
+) -> Dict[str, Any]:
+    """
+    Handle a successful official shop purchase payment.
+    
+    Args:
+        payment_id: The payment intent ID from Stripe
+        user_id: The ID of the user making the purchase
+        amount: The amount in cents
+        amount_dollars: The amount in dollars
+        metadata: Payment metadata containing items, address_id, shipping info
+        db_client: Firestore client
+        
+    Returns:
+        Dict containing information about the processed purchase
+        
+    Raises:
+        HTTPException: If there's an error processing the purchase
+    """
+    try:
+        import ast
+        
+        logger.info(f"Processing official shop purchase for payment {payment_id}, user {user_id}")
+        
+        # Parse items from metadata
+        items_str = metadata.get('items', '[]')
+        try:
+            items = ast.literal_eval(items_str)
+        except Exception as e:
+            logger.error(f"Failed to parse items from metadata: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid items format in payment metadata: {str(e)}"
+            )
+        
+        if not items or not isinstance(items, list):
+            raise HTTPException(
+                status_code=400,
+                detail="No items found in payment metadata"
+            )
+        
+        address_id = metadata.get('address_id')
+        shipping_cost_cents = int(metadata.get('shipping_cost_cents', 0))
+        shippo_rate_id = metadata.get('shippo_rate_id', '')
+        
+        logger.info(f"Processing {len(items)} items for user {user_id}")
+        
+        # Track cards added for response
+        cards_added = []
+        
+        # Process each item
+        for item in items:
+            collection_id = item.get('collection_id')
+            card_id = item.get('card_id')
+            quantity = item.get('quantity', 1)
+            
+            if not collection_id or not card_id:
+                logger.error(f"Invalid item in purchase: {item}")
+                continue
+            
+            # Get card from official listing
+            card_ref = db_client.collection('official_listing').document(collection_id).collection('cards').document(card_id)
+            card_doc = await card_ref.get()
+            
+            if not card_doc.exists:
+                logger.error(f"Card {card_id} not found in official listing {collection_id}")
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Card {card_id} not found in collection {collection_id}"
+                )
+            
+            card_data = card_doc.to_dict()
+            card_reference = card_data.get('card_reference')
+            
+            if not card_reference:
+                logger.error(f"Card {card_id} has no card_reference field")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Invalid card data: missing card_reference"
+                )
+            
+            # Reduce stock in official_listing
+            current_quantity = card_data.get('quantity', 0)
+            new_quantity = current_quantity - quantity
+            
+            if new_quantity < 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock for card {card_id}"
+                )
+            
+            # Update or delete the listing based on remaining quantity
+            if new_quantity == 0:
+                await card_ref.delete()
+                logger.info(f"Deleted card {card_id} from official listing (quantity reached 0)")
+            else:
+                await card_ref.update({'quantity': new_quantity})
+                logger.info(f"Updated card {card_id} quantity from {current_quantity} to {new_quantity}")
+            
+            # Update quantity_in_offical_marketplace on the original card
+            # Parse card_reference to get the path (e.g., "pokemon/card-id")
+            card_ref_parts = card_reference.split('/')
+            if len(card_ref_parts) == 2:
+                ref_collection = card_ref_parts[0]
+                ref_card_id = card_ref_parts[1]
+                
+                # Get reference to the card in the main collection
+                main_card_ref = db_client.collection(ref_collection).document(ref_card_id)
+                main_card_doc = await main_card_ref.get()
+                
+                if main_card_doc.exists:
+                    main_card_data = main_card_doc.to_dict()
+                    current_marketplace_qty = main_card_data.get('quantity_in_offical_marketplace', 0)
+                    new_marketplace_qty = max(0, current_marketplace_qty - quantity)
+                    
+                    await main_card_ref.update({
+                        'quantity_in_offical_marketplace': new_marketplace_qty
+                    })
+                    logger.info(f"Updated quantity_in_offical_marketplace for {card_reference} from {current_marketplace_qty} to {new_marketplace_qty}")
+            
+            # Track cards for order record
+            cards_added.append({
+                'card_id': card_id,
+                'collection_id': collection_id,
+                'card_reference': card_reference,
+                'card_name': card_data.get('card_name', ''),
+                'quantity': quantity,
+                'image_url': card_data.get('image_url', ''),
+                'rarity': card_data.get('rarity', 1),
+                'point_worth': card_data.get('point_worth', 0),
+                'type': card_data.get('type', 'card'),
+                'price': card_data.get('priceCash', 0)
+            })
+        
+        # Get user data for order records
+        user_ref = db_client.collection('users').document(user_id)
+        user_doc = await user_ref.get()
+        user_data = user_doc.to_dict() if user_doc.exists else {}
+        addresses = user_data.get('addresses', [])
+        
+        shipping_address = None
+        for addr in addresses:
+            if addr.get('id') == address_id:
+                shipping_address = addr
+                break
+        
+        # Create a unique order ID
+        order_id = f"order_{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S%f')[:17]}"
+        
+        # Calculate totals
+        total_cards = sum(card['quantity'] for card in cards_added)
+        subtotal = sum(card['price'] * card['quantity'] for card in cards_added)
+        shipping_cost_dollars = shipping_cost_cents / 100.0
+        tax_amount = amount_dollars - subtotal - shipping_cost_dollars
+        
+        # Prepare common order data
+        order_data = {
+            'order_id': order_id,
+            'payment_id': payment_id,
+            'user_id': user_id,
+            'user_email': user_data.get('email', ''),
+            'purchase_type': 'official_shop',
+            'status': 'authorized',  # Payment is authorized but not captured yet
+            'payment_status': 'authorized',  # Explicit payment status
+            'shipping_status': 'pending',
+            'created_at': datetime.now(),
+            'order_date': datetime.now(),
+            'subtotal': subtotal,
+            'shipping_cost': shipping_cost_dollars,
+            'tax_amount': tax_amount,
+            'amount_paid': amount_dollars,
+            'currency': 'usd',
+            'card_count': total_cards,
+            'items_count': len(items),
+            'shipping_address': shipping_address,
+            'shippo_rate_id': shippo_rate_id,
+            'total_weight_grams': int(metadata.get('total_weight_grams', 0)),
+            'parcel_length': metadata.get('parcel_length', '6'),
+            'parcel_width': metadata.get('parcel_width', '4'),
+            'parcel_height': metadata.get('parcel_height', '1'),
+            'parcel_weight_oz': metadata.get('parcel_weight_oz', '1'),
+            'cards': cards_added
+        }
+        
+        # 1. Create record in user's shop_orders subcollection
+        try:
+            user_shop_order_ref = user_ref.collection('shop_orders').document(order_id)
+            await user_shop_order_ref.set(order_data)
+            logger.info(f"Created shop order {order_id} in user {user_id}'s subcollection")
+        except Exception as e:
+            logger.error(f"Error creating user shop order record: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create order record: {str(e)}"
+            )
+        
+        # 2. Create record in global shop_orders collection (Cloud Function will process from here)
+        try:
+            global_shop_order_ref = db_client.collection('shop_orders').document(order_id)
+            await global_shop_order_ref.set(order_data)
+            logger.info(f"Created shop order {order_id} in global shop_orders collection for Cloud Function processing")
+        except Exception as e:
+            logger.error(f"Error creating global shop order record: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create shop order record: {str(e)}"
+            )
+        
+        logger.info(f"Successfully processed official shop purchase {payment_id}: Order {order_id} created with {total_cards} cards for user {user_id}")
+        
+        # 3. Send order receipt email to the user
+        try:
+            user_email = user_data.get('email')
+            user_name = user_data.get('displayName', 'Customer')
+            if user_email:
+                await send_shop_order_receipt_email(
+                    to_email=user_email,
+                    to_name=user_name,
+                    order_id=order_id,
+                    order_data=order_data,
+                    cards_added=cards_added
+                )
+                logger.info(f"Sent order receipt email to {user_email}")
+            else:
+                logger.warning(f"User {user_id} has no email address")
+        except Exception as e:
+            # Log the error but don't fail the whole operation if email sending fails
+            logger.error(f"Error sending order receipt email: {e}", exc_info=True)
+        
+        return {
+            "status": "success",
+            "payment_id": payment_id,
+            "order_id": order_id,
+            "user_id": user_id,
+            "amount": amount,
+            "amount_dollars": amount_dollars,
+            "subtotal": subtotal,
+            "shipping_cost_cents": shipping_cost_cents,
+            "shipping_cost": shipping_cost_dollars,
+            "tax_amount": tax_amount,
+            "items_count": len(items),
+            "cards_ordered": total_cards,
+            "address_id": address_id,
+            "shippo_rate_id": shippo_rate_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error handling official shop purchase: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred processing the purchase: {str(e)}"
+        )
+
+async def cancel_shop_order(
+    order_id: str,
+    user_id: str,
+    db_client: AsyncClient
+) -> Dict[str, Any]:
+    """
+    Cancel a shop order and release the Stripe authorization.
+    
+    Args:
+        order_id: The order ID
+        user_id: The user ID (for verification)
+        db_client: Firestore client
+        
+    Returns:
+        Dict containing cancellation status
+        
+    Raises:
+        HTTPException: If there's an error cancelling the order
+    """
+    try:
+        logger.info(f"Cancelling shop order {order_id} for user {user_id}")
+        
+        # Get order from user's subcollection
+        user_ref = db_client.collection('users').document(user_id)
+        order_ref = user_ref.collection('shop_orders').document(order_id)
+        order_doc = await order_ref.get()
+        
+        if not order_doc.exists:
+            raise HTTPException(
+                status_code=404,
+                detail="Order not found"
+            )
+        
+        order_data = order_doc.to_dict()
+        
+        # Verify order belongs to user
+        if order_data.get('user_id') != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You don't have permission to cancel this order"
+            )
+        
+        # Check if order can be cancelled
+        payment_status = order_data.get('payment_status', '')
+        if payment_status != 'authorized':
+            raise HTTPException(
+                status_code=400,
+                detail=f"Order cannot be cancelled. Current status: {payment_status}"
+            )
+        
+        payment_id = order_data.get('payment_id')
+        if not payment_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Order has no payment_id"
+            )
+        
+        # Cancel the Stripe PaymentIntent
+        try:
+            payment_intent = stripe.PaymentIntent.cancel(payment_id)
+            logger.info(f"Cancelled Stripe PaymentIntent {payment_id}")
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error cancelling payment {payment_id}: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to cancel payment: {str(e)}"
+            )
+        
+        # Restore stock to official_listing
+        cards = order_data.get('cards', [])
+        for card_item in cards:
+            collection_id = card_item.get('collection_id')
+            card_id = card_item.get('card_id')
+            quantity = card_item.get('quantity', 1)
+            
+            if not collection_id or not card_id:
+                logger.warning(f"Skipping card restoration - missing collection_id or card_id: {card_item}")
+                continue
+            
+            try:
+                # Get the card from official_listing
+                card_ref = db_client.collection('official_listing').document(collection_id).collection('cards').document(card_id)
+                card_doc = await card_ref.get()
+                
+                if card_doc.exists:
+                    # Card still exists in listing, just increment quantity
+                    current_quantity = card_doc.to_dict().get('quantity', 0)
+                    await card_ref.update({'quantity': current_quantity + quantity})
+                    logger.info(f"Restored {quantity} units to card {card_id} in official listing")
+                else:
+                    # Card was removed from listing, recreate it
+                    card_reference = card_item.get('card_reference')
+                    if card_reference:
+                        # Get original card data
+                        ref_parts = card_reference.split('/')
+                        if len(ref_parts) == 2:
+                            ref_collection, ref_card_id = ref_parts
+                            main_card_ref = db_client.collection(ref_collection).document(ref_card_id)
+                            main_card_doc = await main_card_ref.get()
+                            
+                            if main_card_doc.exists:
+                                main_card_data = main_card_doc.to_dict()
+                                # Recreate the listing
+                                listing_data = {
+                                    'card_name': card_item.get('card_name', ''),
+                                    'card_reference': card_reference,
+                                    'collection_id': collection_id,
+                                    'image_url': card_item.get('image_url', ''),
+                                    'priceCash': card_item.get('price', 0),
+                                    'type': card_item.get('type', 'card'),
+                                    'quantity': quantity,
+                                    'rarity': card_item.get('rarity', 1),
+                                    'point_worth': card_item.get('point_worth', 0),
+                                    'condition': main_card_data.get('condition', 'near_mint'),
+                                    'date_got_in_stock': main_card_data.get('date_got_in_stock', ''),
+                                    'used_in_fusion': main_card_data.get('used_in_fusion', [])
+                                }
+                                await card_ref.set(listing_data)
+                                logger.info(f"Recreated listing for card {card_id} with quantity {quantity}")
+                
+                # Update quantity_in_offical_marketplace on original card
+                card_reference = card_item.get('card_reference')
+                if card_reference:
+                    ref_parts = card_reference.split('/')
+                    if len(ref_parts) == 2:
+                        ref_collection, ref_card_id = ref_parts
+                        main_card_ref = db_client.collection(ref_collection).document(ref_card_id)
+                        main_card_doc = await main_card_ref.get()
+                        
+                        if main_card_doc.exists:
+                            main_card_data = main_card_doc.to_dict()
+                            current_marketplace_qty = main_card_data.get('quantity_in_offical_marketplace', 0)
+                            await main_card_ref.update({
+                                'quantity_in_offical_marketplace': current_marketplace_qty + quantity
+                            })
+                            logger.info(f"Restored {quantity} to quantity_in_offical_marketplace for {card_reference}")
+                            
+            except Exception as e:
+                logger.error(f"Error restoring stock for card {card_id}: {e}", exc_info=True)
+                # Continue with cancellation even if stock restoration fails
+        
+        # Delete order from both collections (cancelled orders should not be in history)
+        # Delete from user's order subcollection
+        await order_ref.delete()
+        logger.info(f"Deleted shop order {order_id} from user {user_id}'s subcollection")
+        
+        # Delete from global shop_orders collection
+        global_order_ref = db_client.collection('shop_orders').document(order_id)
+        global_order_doc = await global_order_ref.get()
+        if global_order_doc.exists:
+            await global_order_ref.delete()
+            logger.info(f"Deleted shop order {order_id} from global shop_orders collection")
+        
+        logger.info(f"Successfully cancelled and deleted shop order {order_id} for user {user_id}")
+        
+        return {
+            "status": "success",
+            "order_id": order_id,
+            "message": "Order cancelled successfully. Payment authorization has been released."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error handling official shop purchase: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred processing the purchase: {str(e)}"
         )
 
 async def update_tax_user_consent(user_id: str, db_client: AsyncClient) -> Dict[str, Any]:
@@ -1866,6 +2332,21 @@ async def handle_payment_succeeded(payment_intent: Dict[str, Any], db_client: As
         metadata = payment_intent.get('metadata', {})
         user_id = metadata.get('user_id')
 
+        # Check purchase type from metadata
+        purchase_type = metadata.get('purchase_type')
+        
+        # Check if this is an official shop purchase
+        if purchase_type == 'official_shop':
+            logger.info(f"Processing official shop purchase for payment {payment_id}")
+            return await handle_official_shop_purchase(
+                payment_id=payment_id,
+                user_id=user_id,
+                amount=amount,
+                amount_dollars=amount_dollars,
+                metadata=metadata,
+                db_client=db_client
+            )
+        
         # Check if this is a marketplace payment
         listing_id = metadata.get('listing_id')
         buyer_id = metadata.get('buyer_id')
@@ -1959,4 +2440,364 @@ async def handle_payment_succeeded(payment_intent: Dict[str, Any], db_client: As
         raise HTTPException(
             status_code=500, 
             detail=f"An unexpected error occurred, Stripe should retry this webhook: {str(e)}"
+        )
+
+async def create_official_shop_checkout_session(
+    user_id: str,
+    items: list[dict],
+    address_id: str,
+    db_client: AsyncClient
+) -> Dict[str, Any]:
+    """
+    Create a Stripe checkout session for official shop purchases.
+    
+    Args:
+        user_id: The ID of the user making the purchase
+        items: List of items with collection_id, card_id, and quantity
+        address_id: The ID of the user's selected shipping address
+        db_client: Firestore async client
+        
+    Returns:
+        Dict containing checkout session URL and price breakdown
+        
+    Raises:
+        HTTPException: If there's an error creating the session
+    """
+    try:
+        # Fetch the user document to get addresses array
+        user_ref = db_client.collection('users').document(user_id)
+        user_doc = await user_ref.get()
+        
+        if not user_doc.exists:
+            raise HTTPException(
+                status_code=404,
+                detail=f"User {user_id} not found"
+            )
+        
+        user_data = user_doc.to_dict()
+        addresses = user_data.get('addresses', [])
+        
+        # Find the address with the given ID
+        address_data = None
+        for addr in addresses:
+            if addr.get('id') == address_id:
+                address_data = addr
+                break
+        
+        if not address_data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Address {address_id} not found"
+            )
+        
+        # Fetch card details and build line items
+        line_items = []
+        total_amount_cents = 0
+        total_weight_grams = 0  # Track total weight for shipping calculation
+        
+        # Count items by type for dimension calculation
+        item_counts = {'box': 0, 'pack': 0, 'card': 0}
+        
+        # Weight mapping based on item type
+        WEIGHT_MAP = {
+            'box': 320,   # grams
+            'pack': 10,   # grams
+            'card': 10    # grams
+        }
+        
+        for item in items:
+            collection_id = item.get('collection_id')
+            card_id = item.get('card_id')
+            quantity = item.get('quantity', 1)
+            
+            # Get card from official listing
+            card_ref = db_client.collection('official_listing').document(collection_id).collection('cards').document(card_id)
+            card_doc = await card_ref.get()
+            
+            if not card_doc.exists:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Card {card_id} not found in collection {collection_id}"
+                )
+            
+            card_data = card_doc.to_dict()
+            price_cash = card_data.get('priceCash', 0)
+            card_name = card_data.get('card_name', 'Unknown Card')
+            item_type = card_data.get('type', 'card')  # Get type field (box, pack, or card)
+            
+            # Track item counts by type
+            if item_type in item_counts:
+                item_counts[item_type] += quantity
+            else:
+                item_counts['card'] += quantity  # Default to card if unknown type
+            
+            # Calculate weight for this item
+            item_weight = WEIGHT_MAP.get(item_type, 10)  # Default to 10g if type not recognized
+            total_weight_grams += item_weight * quantity
+            
+            # Convert price to cents
+            price_cents = dollars_to_cents(price_cash)
+            
+            # Check if there's enough stock
+            available_quantity = card_data.get('quantity', 0)
+            if available_quantity < quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock for {card_name}. Available: {available_quantity}, Requested: {quantity}"
+                )
+            
+            # Add to line items
+            line_items.append({
+                'price_data': {
+                    'currency': 'usd',
+                    'unit_amount': price_cents,
+                    'product_data': {
+                        'name': card_name,
+                        'description': f"Collection: {collection_id}",
+                        'metadata': {
+                            'collection_id': collection_id,
+                            'card_id': card_id,
+                            'type': item_type
+                        },
+                        'tax_code': 'txcd_99999999'  # General tangible goods - trading cards are taxable in Ohio
+                    },
+                    'tax_behavior': 'exclusive'  # Tax is added on top of the price
+                },
+                'quantity': quantity
+            })
+            
+            total_amount_cents += price_cents * quantity
+        
+        if not line_items:
+            raise HTTPException(status_code=400, detail="No items to purchase")
+        
+        logger.info(f"Total weight for shipment: {total_weight_grams}g for {len(items)} items")
+        
+        # Calculate shipping cost using Shippo
+        shipping_cost_cents = 0
+        shippo_rate_id = None
+        
+        try:
+            # Initialize Shippo SDK
+            shippo_sdk = Shippo(api_key_header=settings.shippo_api_key)
+            
+            # From address (zapull.fun warehouse)
+            from_address = components.AddressCreateRequest(
+                name='zapull.fun',
+                street1='10716 Pearl Creek Drive',
+                city='Plain City',
+                state='OH',
+                zip='43064',
+                country='US',
+                phone='2202461193',
+                email='andy@zapull.fun'
+            )
+            
+            # To address (customer's address)
+            to_address = components.AddressCreateRequest(
+                name=address_data.get('name', ''),
+                street1=address_data.get('street', address_data.get('line1', '')),
+                street2=address_data.get('street2', address_data.get('line2', '')),
+                city=address_data.get('city', ''),
+                state=address_data.get('state', ''),
+                zip=address_data.get('zip', address_data.get('postal_code', '')),
+                country=address_data.get('country', 'US'),
+                phone=address_data.get('phone', ''),
+                email=user_data.get('email', '')
+            )
+            
+            # Convert grams to ounces for Shippo (1 oz = 28.3495 grams)
+            weight_oz = max(1, round(total_weight_grams / 28.3495))  # Minimum 1 oz
+            
+            # Calculate parcel dimensions based on item types
+            # Priority: boxes > packs > cards
+            if item_counts['box'] > 0:
+                # Box orders need larger dimensions
+                if item_counts['box'] == 1:
+                    # Single box: 8" x 6" x 4"
+                    length, width, height = '8', '6', '4'
+                elif item_counts['box'] <= 3:
+                    # 2-3 boxes: Medium box 11" x 8.5" x 5.5"
+                    length, width, height = '11', '8.5', '5.5'
+                else:
+                    # 4+ boxes: Large box 12" x 12" x 6"
+                    length, width, height = '12', '12', '6'
+            elif item_counts['pack'] > 0:
+                # Pack orders
+                if item_counts['pack'] <= 5:
+                    # Few packs: Small padded envelope 8" x 6" x 2"
+                    length, width, height = '8', '6', '2'
+                elif item_counts['pack'] <= 15:
+                    # Medium pack order: 9" x 6" x 3"
+                    length, width, height = '9', '6', '3'
+                else:
+                    # Large pack order: 10" x 8" x 4"
+                    length, width, height = '10', '8', '4'
+            else:
+                # Card-only orders: Standard card mailer
+                if item_counts['card'] <= 10:
+                    # Few cards: 6" x 4" x 1"
+                    length, width, height = '6', '4', '1'
+                elif item_counts['card'] <= 30:
+                    # Medium card order: 8" x 6" x 1.5"
+                    length, width, height = '8', '6', '1.5'
+                else:
+                    # Large card order: 9" x 6" x 2"
+                    length, width, height = '9', '6', '2'
+            
+            logger.info(f"Parcel dimensions: {length}\"L x {width}\"W x {height}\"H for {item_counts['box']} boxes, {item_counts['pack']} packs, {item_counts['card']} cards")
+            
+            # Store dimensions for later use
+            parcel_length = length
+            parcel_width = width
+            parcel_height = height
+            parcel_weight_oz = weight_oz
+            
+            # Create parcel based on calculated dimensions and weight
+            parcel = components.ParcelCreateRequest(
+                length=length,
+                width=width,
+                height=height,
+                distance_unit='in',
+                weight=str(weight_oz),
+                mass_unit='oz'
+            )
+            
+            # Create shipment to get rates
+            shipment = shippo_sdk.shipments.create(
+                components.ShipmentCreateRequest(
+                    address_from=from_address,
+                    address_to=to_address,
+                    parcels=[parcel],
+                    async_=False
+                )
+            )
+            
+            # Get the cheapest rate
+            if shipment.rates and len(shipment.rates) > 0:
+                cheapest_rate = min(shipment.rates, key=lambda r: float(r.amount))
+                base_shipping_cost = float(cheapest_rate.amount)
+                shippo_rate_id = cheapest_rate.object_id
+                
+                # Use base shipping cost without markup
+                shipping_cost_dollars = base_shipping_cost
+                shipping_cost_cents = dollars_to_cents(shipping_cost_dollars)
+                
+                logger.info(f"Shipping cost: ${shipping_cost_dollars:.2f} ({shipping_cost_cents} cents) using rate {shippo_rate_id}")
+                
+                # Add shipping as a line item
+                line_items.append({
+                    'price_data': {
+                        'currency': 'usd',
+                        'unit_amount': shipping_cost_cents,
+                        'product_data': {
+                            'name': 'Shipping',
+                            'description': f'Shipping via {cheapest_rate.provider} {cheapest_rate.servicelevel.name}',
+                            'metadata': {
+                                'shippo_rate_id': shippo_rate_id,
+                                'weight_grams': str(total_weight_grams),
+                                'weight_oz': str(weight_oz)
+                            },
+                            'tax_code': 'txcd_92010001'  # Shipping charges are taxable in Ohio
+                        },
+                        'tax_behavior': 'exclusive'  # Tax is added on top of the price
+                    },
+                    'quantity': 1
+                })
+            else:
+                logger.warning(f"No shipping rates available for address {address_id}")
+                raise HTTPException(
+                    status_code=400,
+                    detail="Unable to calculate shipping cost for this address"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error calculating shipping cost: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to calculate shipping cost: {str(e)}"
+            )
+        
+        # Get or create Stripe customer
+        customer_id = await get_or_create_stripe_customer(user_id, db_client)
+        
+        # Update customer with address for tax calculation
+        # Map address fields: backend uses 'street', 'zip' but Stripe uses 'line1', 'postal_code'
+        try:
+            stripe.Customer.modify(
+                customer_id,
+                address={
+                    'line1': address_data.get('street', address_data.get('line1', '')),
+                    'line2': address_data.get('street2', address_data.get('line2', '')),
+                    'city': address_data.get('city', ''),
+                    'state': address_data.get('state', ''),
+                    'postal_code': address_data.get('zip', address_data.get('postal_code', '')),
+                    'country': address_data.get('country', 'US')
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Failed to update customer address: {e}")
+        
+        # Create checkout session with automatic tax
+        # Note: Cannot use payment_intent_data[shipping] with automatic_tax enabled
+        # Instead, we use the customer's address which we already updated above
+        session = stripe.checkout.Session.create(
+            customer=customer_id,
+            line_items=line_items,
+            mode='payment',
+            automatic_tax={'enabled': True},
+            success_url=f"{settings.frontend_url}/shop?success=true&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{settings.frontend_url}/shop?canceled=true",
+            metadata={
+                'user_id': user_id,
+                'purchase_type': 'official_shop',
+                'address_id': address_id,
+                'items': str(items),  # Store items for webhook processing
+                'shippo_rate_id': shippo_rate_id or '',
+                'total_weight_grams': str(total_weight_grams),
+                'shipping_cost_cents': str(shipping_cost_cents),
+                'parcel_length': parcel_length,
+                'parcel_width': parcel_width,
+                'parcel_height': parcel_height,
+                'parcel_weight_oz': str(parcel_weight_oz)
+            },
+            payment_intent_data={
+                'capture_method': 'manual',  # Authorize but don't capture yet
+                'metadata': {
+                    'user_id': user_id,
+                    'purchase_type': 'official_shop',
+                    'address_id': address_id,
+                    'items': str(items),
+                    'shippo_rate_id': shippo_rate_id or '',
+                    'total_weight_grams': str(total_weight_grams),
+                    'shipping_cost_cents': str(shipping_cost_cents),
+                    'parcel_length': parcel_length,
+                    'parcel_width': parcel_width,
+                    'parcel_height': parcel_height,
+                    'parcel_weight_oz': str(parcel_weight_oz)
+                }
+            }
+        )
+        
+        logger.info(f"Created checkout session {session.id} for user {user_id} with {len(items)} items, shipping: ${shipping_cost_cents/100.0}")
+        
+        return {
+            'session_id': session.id,
+            'session_url': session.url,
+            'subtotal_cents': total_amount_cents,
+            'subtotal': total_amount_cents / 100.0,
+            'shipping_cents': shipping_cost_cents,
+            'shipping': shipping_cost_cents / 100.0,
+            'total_weight_grams': total_weight_grams,
+            'message': 'Checkout session created successfully'
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating official shop checkout session for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while creating the checkout session: {str(e)}"
         )

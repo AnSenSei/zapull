@@ -44,6 +44,7 @@ export interface ShippingInfo {
   tracking_number: string
   tracking_url: string
   shipping_status: string
+  card_status?: string
   is_active: boolean
   cards: ShippingCard[]
 }
@@ -90,13 +91,13 @@ export const getShippingDetail = async (userId: string, requestId: string): Prom
 // 修改物流状态
 export interface UpdateShippingStatusParams {
   status: string
-  shipping_status: string
+  card_status?: string
   tracking_number?: string
 }
 
 export const updateShippingStatus = async (
-  userId: string, 
-  requestId: string, 
+  userId: string,
+  requestId: string,
   params: UpdateShippingStatusParams
 ): Promise<any> => {
   return request.put(`/shipping/withdraw-requests/${userId}/${requestId}/status`, params)
@@ -109,4 +110,43 @@ export const updateShippingActiveStatus = async (
   isActive: boolean
 ): Promise<any> => {
   return request.patch(`/shipping/withdraw-requests/${userId}/${requestId}/activate`, { is_active: isActive })
+}
+
+// 获取单个商店订单详情
+export const getShopOrderDetail = async (userId: string, orderId: string): Promise<{ data: ShippingInfo }> => {
+  return request.get(`/shipping/shop-orders/${userId}/${orderId}`)
+}
+
+// 更新商店订单状态
+export const updateShopOrderStatus = async (
+  userId: string,
+  orderId: string,
+  params: UpdateShippingStatusParams
+): Promise<any> => {
+  return request.put(`/shipping/shop-orders/${userId}/${orderId}/status`, params)
+}
+
+
+// 归档物流
+export const archiveShipping = async (userId: string, requestId: string): Promise<any> => {
+  return request.post(`/shipping/withdraw-requests/${userId}/${requestId}/archive`)
+}
+
+// 获取已归档物流列表
+export const getArchivedShippingList = async (
+  params: {
+    limit?: number
+    cursor?: string
+    sort_by?: string
+    sort_order?: 'asc' | 'desc'
+    status?: string
+    card_status?: string
+  }
+): Promise<ShippingListResponse> => {
+  return request.get('/shipping/withdraw-requests/archived', { params })
+}
+
+// 取消归档物流
+export const unarchiveShipping = async (userId: string, requestId: string): Promise<any> => {
+  return request.post(`/shipping/withdraw-requests/${userId}/${requestId}/unarchive`)
 }

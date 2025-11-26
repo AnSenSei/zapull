@@ -43,12 +43,12 @@ export default function MarketplacePage() {
   const { uid } = useAuthStore()
   const userId = uid || ''
   
-  const [activeTab, setActiveTab] = useState('marketplace')
+  // Removed activeTab state - marketplace now only handles player-to-player trading
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [sortValue, setSortValue] = useState('createdAt_desc') // Combined sort value
   const [priceRangeType, setPriceRangeType] = useState<'cash' | 'points'>('cash')
-  const [cards, setCards] = useState<(Listing | OfficialCard)[]>([])
+  const [cards, setCards] = useState<Listing[]>([])
   const [loading, setLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -57,7 +57,7 @@ export default function MarketplacePage() {
   const [collections, setCollections] = useState<CollectionItem[]>([])
   const [selectedCard, setSelectedCard] = useState<Card | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedListing, setSelectedListing] = useState<Listing | OfficialCard | null>(null)
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null)
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false)
   const [minPriceCash, setMinPriceCash] = useState<number | undefined>(undefined)
   const [maxPriceCash, setMaxPriceCash] = useState<number | undefined>(undefined)
@@ -74,46 +74,30 @@ export default function MarketplacePage() {
   // Otherwise -> both filter types can be shown based on user selection
   const [sortBy, sortOrder] = sortValue.split('_') as [string, 'asc' | 'desc']
 
-  // Fetch marketplace data
+  // Fetch marketplace data (player-to-player only)
   const fetchMarketplaceData = useCallback(async () => {
-    console.debug('[Marketplace] fetchMarketplaceData invoked', { activeTab, selectedCategory, sortBy, sortOrder, searchQuery, currentPage, minPriceCash, maxPriceCash, minPricePoints, maxPricePoints })
+    console.debug('[Marketplace] fetchMarketplaceData invoked', { selectedCategory, sortBy, sortOrder, searchQuery, currentPage, minPriceCash, maxPriceCash, minPricePoints, maxPricePoints })
     setLoading(true)
     try {
-      if (activeTab === 'marketplace') {
-        // Fetch player marketplace data
-        const params: any = {
-          collection_id: selectedCategory || undefined,
-          per_page: perPage,
-          sort_by: sortBy,
-          sort_order: sortOrder,
-          search_query: searchQuery || undefined,
-          page: currentPage,
-          filter_out_accepted: true,
-          min_price_cash: minPriceCash,
-          max_price_cash: maxPriceCash,
-          min_price_points: minPricePoints,
-          max_price_points: maxPricePoints
-        }
-        
-        const response: ListingsResponse = await marketplaceApi.getAllListings(params)
-        setCards(response.listings)
-        setTotalPages(response.pagination.total_pages)
-        setTotalItems(response.pagination.total_items)
-      } else {
-        // Fetch official marketplace data
-        const params: any = {
-          collection_id: selectedCategory || undefined,
-          page: currentPage,
-          per_page: perPage,
-          sort_by: sortBy === 'priceCash' ? 'priceCash' as const : 'pricePoints' as const,
-          sort_order: sortOrder,
-          search_query: searchQuery || undefined
-        }
-        
-        const response: OfficialListingsResponse = await marketplaceApi.getOfficialListings(params)
-        setCards(response.cards)
-        setTotalPages(response.pagination.total_pages)
+      // Fetch player marketplace data only
+      const params: any = {
+        collection_id: selectedCategory || undefined,
+        per_page: perPage,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        search_query: searchQuery || undefined,
+        page: currentPage,
+        filter_out_accepted: true,
+        min_price_cash: minPriceCash,
+        max_price_cash: maxPriceCash,
+        min_price_points: minPricePoints,
+        max_price_points: maxPricePoints
       }
+      
+      const response: ListingsResponse = await marketplaceApi.getAllListings(params)
+      setCards(response.listings)
+      setTotalPages(response.pagination.total_pages)
+      setTotalItems(response.pagination.total_items)
     } catch (error) {
       console.error('Failed to fetch marketplace data:', error)
       // If API call fails, use mock data
@@ -136,7 +120,7 @@ export default function MarketplacePage() {
     } finally {
       setLoading(false)
     }
-  }, [activeTab, selectedCategory, sortBy, sortOrder, searchQuery, currentPage, perPage, minPriceCash, maxPriceCash, minPricePoints, maxPricePoints])
+  }, [selectedCategory, sortBy, sortOrder, searchQuery, currentPage, perPage, minPriceCash, maxPriceCash, minPricePoints, maxPricePoints])
 
   // Set hardcoded collections
   const fetchCollections = () => {
@@ -181,7 +165,7 @@ export default function MarketplacePage() {
   }
 
   // Handle card click event
-  const handleCardClick = (card: Listing | OfficialCard, el?: HTMLElement) => {
+  const handleCardClick = (card: Listing, el?: HTMLElement) => {
     // Record current scroll and clicked element for restoration on close
     if (typeof window !== 'undefined') {
       lastScrollRef.current = window.scrollY
@@ -199,7 +183,7 @@ export default function MarketplacePage() {
       image_url: card.image_url || '/cards/common1.jpg.svg',
       rarity: 3, // Default rarity
       point_worth: card.pricePoints || 0,
-      cash_worth: ('priceCash' in card) ? card.priceCash : 0,
+      cash_worth: card.priceCash || 0,
       collection_id: card.collection_id || selectedCategory || 'unknown'
     }
     
@@ -217,43 +201,17 @@ export default function MarketplacePage() {
   }
 
 
-  // Handle tab switch
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab)
-    setCurrentPage(1) // Reset to first page
-    // If switching to official market and current sort is cash price, switch to points price
-    if (tab === 'official' && sortBy === 'priceCash') {
-      setSortValue('pricePoints_asc')
-    }
-  }
+  // Tab switching removed - marketplace now only handles player-to-player trading
 
   return (
     <div className="min-h-screen bg-[#2A2B47]">
       {/* 移动端布局 */}
       <div className="sm:hidden">
         <div className="p-4 pt-8">
-          {/* 移动端顶部标签切换 */}
-          <div className="flex bg-[#6B46C1] rounded-lg p-1 mb-4 w-full">
-            <button
-              onClick={() => handleTabChange('marketplace')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'marketplace'
-                  ? 'bg-white text-[#6B46C1]'
-                  : 'text-white hover:text-gray-200'
-              }`}
-            >
-              Marketplace
-            </button>
-            <button
-              onClick={() => handleTabChange('official')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'official'
-                  ? 'bg-white text-[#6B46C1]'
-                  : 'text-white hover:text-gray-200'
-              }`}
-            >
-              Official
-            </button>
+          {/* 移动端标题 */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-white text-center">Marketplace</h1>
+            <p className="text-gray-400 text-center text-sm mt-2">Player-to-player trading</p>
           </div>
 
           {/* 移动端工具栏 - 垂直布局 */}
@@ -292,21 +250,13 @@ export default function MarketplacePage() {
                 setSortValue(value)
                 setCurrentPage(1)
               }}
-              options={
-                activeTab === 'marketplace' 
-                  ? [
-                      { id: 'recent', label: 'Recently Listed', value: 'createdAt', order: 'desc', icon: '🕐' },
-                      { id: 'price_low', label: 'Cash: Low to High', value: 'priceCash', order: 'asc', icon: '💵' },
-                      { id: 'price_high', label: 'Cash: High to Low', value: 'priceCash', order: 'desc', icon: '💵' },
-                      { id: 'points_low', label: 'Points: Low to High', value: 'pricePoints', order: 'asc', iconImage: '/marketplace/coin.png' },
-                      { id: 'points_high', label: 'Points: High to Low', value: 'pricePoints', order: 'desc', iconImage: '/marketplace/coin.png' },
-                    ]
-                  : [
-                      { id: 'recent', label: 'Recently Added', value: 'createdAt', order: 'desc', icon: '🕐' },
-                      { id: 'points_low', label: 'Points: Low to High', value: 'pricePoints', order: 'asc', iconImage: '/marketplace/coin.png' },
-                      { id: 'points_high', label: 'Points: High to Low', value: 'pricePoints', order: 'desc', iconImage: '/marketplace/coin.png' },
-                    ]
-              }
+              options={[
+                { id: 'recent', label: 'Recently Listed', value: 'createdAt', order: 'desc', icon: '🕐' },
+                { id: 'price_low', label: 'Cash: Low to High', value: 'priceCash', order: 'asc', icon: '💵' },
+                { id: 'price_high', label: 'Cash: High to Low', value: 'priceCash', order: 'desc', icon: '💵' },
+                { id: 'points_low', label: 'Points: Low to High', value: 'pricePoints', order: 'asc', iconImage: '/marketplace/coin.png' },
+                { id: 'points_high', label: 'Points: High to Low', value: 'pricePoints', order: 'desc', iconImage: '/marketplace/coin.png' },
+              ]}
               className="w-full"
             />
 
@@ -431,7 +381,7 @@ export default function MarketplacePage() {
                 const cardName = 'card_name' in card ? card.card_name : (card as any).name || 'Unknown Card'
                 const cardImage = card.image_url || '/cards/common1.jpg.svg'
                 const cardPoints = card.pricePoints || 0
-                const cardCash = 'priceCash' in card ? card.priceCash : 0
+                const cardCash = card.priceCash || 0
                 
                 return (
                   <motion.div
@@ -492,12 +442,6 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
                           </span>
                         )}
                       </div>
-                      {/* Show quantity for official listings */}
-                      {activeTab === 'official' && 'quantity' in card && (
-                        <div className="text-gray-400 text-xs mt-1">
-                          Stock: {card.quantity}
-                        </div>
-                      )}
                     </div>
                   </motion.div>
                 )
@@ -536,28 +480,10 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
       <div className="hidden sm:block">
         <div className="w-full">
           <div className="p-4 lg:p-6">
-          {/* Top tab switch */}
-          <div className="flex bg-[#6B46C1] rounded-lg p-1 mb-6 w-full">
-            <button
-              onClick={() => handleTabChange('marketplace')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'marketplace'
-                  ? 'bg-white text-[#6B46C1]'
-                  : 'text-white hover:text-gray-200'
-              }`}
-            >
-              Marketplace
-            </button>
-            <button
-              onClick={() => handleTabChange('official')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'official'
-                  ? 'bg-white text-[#6B46C1]'
-                  : 'text-white hover:text-gray-200'
-              }`}
-            >
-              Official redemption
-            </button>
+          {/* Desktop title */}
+          <div className="mb-8 text-center">
+            <h1 className="text-4xl font-bold text-white">Marketplace</h1>
+            <p className="text-gray-400 mt-2">Player-to-player trading platform</p>
           </div>
 
           {/* Toolbar - single line layout */}
@@ -569,21 +495,13 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
                 setSortValue(value)
                 setCurrentPage(1)
               }}
-              options={
-                activeTab === 'marketplace' 
-                  ? [
-                      { id: 'recent', label: 'Recently Listed', value: 'createdAt', order: 'desc', icon: '🕐' },
-                      { id: 'price_low', label: 'Cash: Low to High', value: 'priceCash', order: 'asc', icon: '💵' },
-                      { id: 'price_high', label: 'Cash: High to Low', value: 'priceCash', order: 'desc', icon: '💵' },
-                      { id: 'points_low', label: 'Points: Low to High', value: 'pricePoints', order: 'asc', iconImage: '/marketplace/coin.png' },
-                      { id: 'points_high', label: 'Points: High to Low', value: 'pricePoints', order: 'desc', iconImage: '/marketplace/coin.png' },
-                    ]
-                  : [
-                      { id: 'recent', label: 'Recently Added', value: 'createdAt', order: 'desc', icon: '🕐' },
-                      { id: 'points_low', label: 'Points: Low to High', value: 'pricePoints', order: 'asc', iconImage: '/marketplace/coin.png' },
-                      { id: 'points_high', label: 'Points: High to Low', value: 'pricePoints', order: 'desc', iconImage: '/marketplace/coin.png' },
-                    ]
-              }
+              options={[
+                { id: 'recent', label: 'Recently Listed', value: 'createdAt', order: 'desc', icon: '🕐' },
+                { id: 'price_low', label: 'Cash: Low to High', value: 'priceCash', order: 'asc', icon: '💵' },
+                { id: 'price_high', label: 'Cash: High to Low', value: 'priceCash', order: 'desc', icon: '💵' },
+                { id: 'points_low', label: 'Points: Low to High', value: 'pricePoints', order: 'asc', iconImage: '/marketplace/coin.png' },
+                { id: 'points_high', label: 'Points: High to Low', value: 'pricePoints', order: 'desc', iconImage: '/marketplace/coin.png' },
+              ]}
             />
 
             {/* Collection dropdown */}
@@ -733,7 +651,7 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
                 const cardName = 'card_name' in card ? card.card_name : (card as any).name || 'Unknown Card'
                 const cardImage = card.image_url || '/cards/common1.jpg.svg'
                 const cardPoints = card.pricePoints || 0
-                const cardCash = 'priceCash' in card ? card.priceCash : 0
+                const cardCash = card.priceCash || 0
                 
                 return (
                   <motion.div
@@ -795,12 +713,6 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
                           </span>
                         )}
                       </div>
-                      {/* Show quantity for official listings */}
-                      {activeTab === 'official' && 'quantity' in card && (
-                        <div className="text-gray-400 text-sm">
-                          Stock: {card.quantity}
-                        </div>
-                      )}
                     </div>
                   </motion.div>
                 )
@@ -854,7 +766,7 @@ radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.08) 50%, transparent 51%)
             }
           }, 0)
         }}
-        channel={activeTab === 'official' ? 'official' : 'player'}
+        channel="player"
         userId={userId}
         listingId={selectedCard?.id}
         onPurchase={handlePurchase}

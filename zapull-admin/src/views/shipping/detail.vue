@@ -140,11 +140,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { 
   getShippingDetail,
+  getShopOrderDetail,
   updateShippingStatus,
+  updateShopOrderStatus,
   type ShippingInfo,
   type UpdateShippingStatusParams
 } from '../../api/shipping-new'
@@ -158,6 +160,9 @@ const route = useRoute()
 const router = useRouter()
 const userId = ref(route.params.userId as string)
 const requestId = ref(route.params.requestId as string)
+
+// Detect if this is a shop order based on ID format
+const isShopOrder = computed(() => requestId.value.startsWith('order_'))
 
 // 物流详情数据
 const shippingDetail = ref<ShippingInfo | null>(null)
@@ -180,7 +185,10 @@ const fetchShippingDetail = async () => {
 
   loading.value = true
   try {
-    const response = await getShippingDetail(userId.value, requestId.value)
+    // Use appropriate API based on whether it's a shop order or withdraw request
+    const response = isShopOrder.value 
+      ? await getShopOrderDetail(userId.value, requestId.value)
+      : await getShippingDetail(userId.value, requestId.value)
     shippingDetail.value = response.data
     
     // 初始化更新状态表单
@@ -257,7 +265,9 @@ const confirmUpdateStatus = async () => {
   
   updateStatusLoading.value = true
   try {
-    await updateShippingStatus(
+    // Use appropriate API based on whether it's a shop order or withdraw request
+    const updateFn = isShopOrder.value ? updateShopOrderStatus : updateShippingStatus
+    await updateFn(
       userId.value,
       requestId.value,
       { 

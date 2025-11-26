@@ -122,8 +122,16 @@
           <el-input-number v-model="addFormData.quantity" :min="1" :precision="0" />
         </el-form-item>
         
-        <el-form-item label="积分价格" prop="pricePoints">
-          <el-input-number v-model="addFormData.pricePoints" :min="0" :precision="0" />
+        <el-form-item label="现金价格 (USD)" prop="priceCash">
+          <el-input-number v-model="addFormData.priceCash" :min="0" :precision="2" />
+        </el-form-item>
+        
+        <el-form-item label="类型" prop="type">
+          <el-select v-model="addFormData.type" placeholder="请选择类型">
+            <el-option label="卡片 (Card)" value="card" />
+            <el-option label="卡包 (Pack)" value="pack" />
+            <el-option label="礼盒 (Box)" value="box" />
+          </el-select>
         </el-form-item>
         
         <el-form-item>
@@ -151,8 +159,16 @@
           <el-input-number v-model="editFormData.quantity" :min="1" :precision="0" />
         </el-form-item>
         
-        <el-form-item label="积分价格" prop="pricePoints">
-          <el-input-number v-model="editFormData.pricePoints" :min="0" :precision="0" />
+        <el-form-item label="现金价格 (USD)" prop="priceCash">
+          <el-input-number v-model="editFormData.priceCash" :min="0" :precision="2" />
+        </el-form-item>
+        
+        <el-form-item label="类型" prop="type">
+          <el-select v-model="editFormData.type" placeholder="请选择类型">
+            <el-option label="卡片 (Card)" value="card" />
+            <el-option label="卡包 (Pack)" value="pack" />
+            <el-option label="礼盒 (Box)" value="box" />
+          </el-select>
         </el-form-item>
         
         <el-form-item>
@@ -365,8 +381,8 @@ const addFormData = reactive<AddMarketplaceItemParams>({
   collection_id: '',
   card_id: '',
   quantity: 1,
-  pricePoints: 0,
-  priceCash: 0
+  priceCash: 0,
+  type: 'card'
 })
 
 // 添加表单验证规则
@@ -377,8 +393,11 @@ const addRules = {
   card_id: [
     { required: true, message: '请输入卡片ID', trigger: 'blur' }
   ],
-  pricePoints: [
-    { required: true, message: '请输入积分价格', trigger: 'blur' }
+  priceCash: [
+    { required: true, message: '请输入现金价格', trigger: 'blur' }
+  ],
+  type: [
+    { required: true, message: '请选择类型', trigger: 'change' }
   ]
 }
 
@@ -393,8 +412,8 @@ const editFormData = reactive<UpdateMarketplaceItemParams & { quantity?: number 
   collection_id: '',
   card_id: '',
   quantity: 1,
-  pricePoints: 0,
-  priceCash: 0
+  priceCash: 0,
+  type: 'card'
 })
 
 // 编辑表单验证规则
@@ -402,8 +421,11 @@ const editRules = {
   quantity: [
     { required: true, message: '请输入数量', trigger: 'blur' }
   ],
-  pricePoints: [
-    { required: true, message: '请输入积分价格', trigger: 'blur' }
+  priceCash: [
+    { required: true, message: '请输入现金价格', trigger: 'blur' }
+  ],
+  type: [
+    { required: true, message: '请选择类型', trigger: 'change' }
   ]
 }
 
@@ -563,8 +585,8 @@ const resetAddForm = () => {
   addFormData.collection_id = searchForm.collectionId
   addFormData.card_id = ''
   addFormData.quantity = 1
-  addFormData.pricePoints = 0
   addFormData.priceCash = 0
+  addFormData.type = 'card'
 }
 
 // 编辑商品
@@ -573,8 +595,8 @@ const handleEdit = (row: MarketplaceCard) => {
   editFormData.collection_id = searchForm.collectionId
   editFormData.card_id = row.id
   editFormData.quantity = row.quantity
-  editFormData.pricePoints = row.pricePoints
   editFormData.priceCash = row.priceCash || 0
+  editFormData.type = row.type || 'card'
   
   editDrawerVisible.value = true
 }
@@ -596,12 +618,12 @@ const submitEditForm = async () => {
           })
         }
         
-        // 再更新价格
+        // 再更新价格和类型
         await updateMarketplaceItem({
           collection_id: editFormData.collection_id,
           card_id: editFormData.card_id,
-          pricePoints: editFormData.pricePoints,
-          priceCash: editFormData.priceCash
+          priceCash: editFormData.priceCash,
+          type: editFormData.type
         })
         
         ElMessage.success('更新商品成功')

@@ -183,10 +183,10 @@ async def get_all_official_packs(
     - Image URL and card count
     """
     try:
-        logger.info("Fetching all packs from offcial collection")
+        logger.info("Fetching all active packs from offcial collection")
         
-        # Get all packs from offcial collection
-        packs_ref = db.collection('packs').document('offcial').collection('offcial')
+        # Get only active packs from offcial collection
+        packs_ref = db.collection('packs').document('offcial').collection('offcial').where('is_active', '==', True)
         packs_docs = await packs_ref.get()
         
         if not packs_docs:
@@ -245,10 +245,24 @@ async def get_official_pack(
         
         pack_info_dict = await get_pack_info(pack_id, db)
         
+        # Check if pack is active - only return active packs to users
+        # Admin endpoints don't use this route so this is safe
+        pack_ref = db.collection('packs').document('offcial').collection('offcial').document(pack_id)
+        pack_doc = await pack_ref.get()
+        if pack_doc.exists:
+            pack_data = pack_doc.to_dict()
+            is_active = pack_data.get('is_active', False)
+            if not is_active:
+                logger.warning(f"Pack {pack_id} is not active, denying access")
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Pack {pack_id} is not available"
+                )
+        
         # Convert dict to PackInfo model
         pack_info = PackInfo(**pack_info_dict)
         
-        logger.info(f"Found pack {pack_id}: {pack_info.name}")
+        logger.info(f"Found active pack {pack_id}: {pack_info.name}")
         return pack_info
         
     except HTTPException:

@@ -360,3 +360,146 @@ async def add_points_to_user(
             status_code=500,
             detail=f"Failed to add points: {str(e)}"
         )
+
+async def get_user_cards(
+    user_id: str,
+    db: AsyncClient,
+    page: int = 1,
+    per_page: int = 20,
+    collection_id: Optional[str] = None,
+    search_query: Optional[str] = None,
+    sort_by: str = "date_got",
+    sort_order: str = "desc"
+) -> Dict[str, Any]:
+    """
+    Get all cards for a specific user with pagination and filtering.
+    
+    Args:
+        user_id: The ID of the user to get cards for
+        db: Firestore async client instance
+        page: Page number (starts from 1)
+        per_page: Number of cards per page (max 100)
+        collection_id: Optional filter by collection/subcollection name
+        search_query: Optional search term to filter cards by name
+        sort_by: Field to sort by (date_got, card_name, point_worth, rarity)
+        sort_order: Sort order (asc or desc)
+    
+    Returns:
+        Dictionary containing cards, pagination info, and collection stats
+        
+    Raises:
+        HTTPException: If user not found or operation fails
+    """
+    try:
+        logger.info(f"Getting cards for user {user_id} - page: {page}, per_page: {per_page}, collection: {collection_id}")
+        
+        # Verify user exists
+        user_ref = db.collection("users").document(user_id)
+        user_doc = await user_ref.get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
+        
+        # Get user's cards collection reference
+        cards_ref = user_ref.collection('cards').document('cards')
+        
+        # Get all available subcollections
+        collections_iter = cards_ref.collections()
+        all_subcollections = []
+        async for sub in collections_iter:
+            all_subcollections.append(sub)
+        subcollection_names = [sub.id for sub in all_subcollections]
+        
+        # If collection_id is specified, filter to that subcollection
+        if collection_id and collection_id in subcollection_names:
+            subcollections_to_query = [collection_id]
+        else:
+            subcollections_to_query = subcollection_names
+        
+        all_cards = []
+        total_cards_count = 0
+        
+        # Query each subcollection
+        for subcoll_name in subcollections_to_query:
+            subcoll_ref = cards_ref.collection(subcoll_name)
+            
+            # Build query with search filter if provided
+            query = subcoll_ref
+            if search_query:
+                # Note: Firestore doesn't support full-text search
+                # This is a basic implementation - for better search, consider using Typesense
+                pass  # We'll filter in memory after fetching
+            
+            # Get all documents in this subcollection
+            docs = await query.get()
+            
+            for doc in docs:
+                card_data = doc.to_dict()
+                card_data['id'] = doc.id
+                card_data['collection_name'] = subcoll_name
+                
+                # Apply search filter if provided
+                if search_query and search_query.lower() not in card_data.get('card_name', '').lower():
+                    continue
+                
+                all_cards.append(card_data)
+                total_cards_count += 1
+        
+        # Sort cards
+        sort_field = sort_by
+        reverse = sort_order.lower() == 'desc'
+        
+        # Handle different sort fields
+        if sort_field == 'date_got':
+            all_cards.sort(key=lambda x: x.get('date_got', datetime.min), reverse=reverse)
+        elif sort_field == 'card_name':
+            all_cards.sort(key=lambda x: x.get('card_name', ''), reverse=reverse)
+        elif sort_field == 'point_worth':
+            all_cards.sort(key=lambda x: x.get('point_worth', 0), reverse=reverse)
+        elif sort_field == 'rarity':
+            all_cards.sort(key=lambda x: x.get('rarity', 0), reverse=reverse)
+        else:
+            # Default to date_got
+            all_cards.sort(key=lambda x: x.get('date_got', datetime.min), reverse=reverse)
+        
+        # Apply pagination
+        start_index = (page - 1) * per_page
+        end_index = start_index + per_page
+        paginated_cards = all_cards[start_index:end_index]
+        
+        # Calculate pagination info
+        total_pages = math.ceil(len(all_cards) / per_page) if per_page > 0 else 1
+        
+        # Get collection stats
+        collection_stats = {}
+        for subcoll_name in subcollection_names:
+            subcoll_cards = [c for c in all_cards if c.get('collection_name') == subcoll_name]
+            collection_stats[subcoll_name] = {
+                'count': len(subcoll_cards),
+                'total_value': sum(c.get('point_worth', 0) * c.get('quantity', 1) for c in subcoll_cards)
+            }
+        
+        logger.info(f"Successfully retrieved {len(paginated_cards)} cards for user {user_id} (total: {len(all_cards)})")
+        
+        return {
+            'cards': paginated_cards,
+            'pagination': {
+                'current_page': page,
+                'per_page': per_page,
+                'total_items': len(all_cards),
+                'total_pages': total_pages,
+                'has_next': page < total_pages,
+                'has_prev': page > 1
+            },
+            'collections': collection_stats,
+            'available_collections': subcollection_names,
+            'user_id': user_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting cards for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get user cards: {str(e)}"
+        )

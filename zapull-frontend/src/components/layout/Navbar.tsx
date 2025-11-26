@@ -379,8 +379,8 @@ const Navbar = () => {
       />
 <nav ref={navRef} className="bg-[#2A2B3D] py-2 border-b border-gray-700 fixed top-0 left-0 right-0 z-[60] md:sticky md:top-0 md:z-50">
         <div className="w-full px-0">
-          {/* Centered desktop logo (show only on very large screens 1600px+ to avoid overlap) */}
-          <div className="absolute inset-0 hidden min-[1600px]:flex items-center justify-center pointer-events-none">
+          {/* Centered desktop logo (show only on very large screens 1920px+ to avoid overlap with nav) */}
+          <div className="absolute inset-0 hidden min-[1920px]:flex items-center justify-center pointer-events-none">
             <Link href="/" className="pointer-events-auto">
               <img
                 src="https://draw.zapull.fun/zapull_logo.jpg"
@@ -417,6 +417,17 @@ const Navbar = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
+              
+              {/* Shop button - Mobile only */}
+              <Link 
+                href="/shop" 
+                className="md:hidden absolute left-[calc(100%+8px)] top-0 flex flex-col items-center justify-center p-1.5 bg-[#1E1F2E] hover:bg-[#3F3F5F] rounded-md transition-colors group min-w-[50px]"
+              >
+                <svg className="w-5 h-5 text-gray-300 group-hover:text-white mb-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7 4c0-1.1.9-2 2-2h6c1.1 0 2 .9 2 2v0H7V4zm0 2V5h10v1h3c1.1 0 2 .9 2 2v11c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2h3zM4 8v11h16V8H4zm6 3h4v2h-4v-2z"/>
+                </svg>
+                <span className="text-gray-300 group-hover:text-white text-[10px] leading-tight">Shop</span>
+              </Link>
               
               {/* Dropdown menu (modal-sized, scrollable) */}
               {isCategoryMenuOpen && (
@@ -500,18 +511,18 @@ const Navbar = () => {
             </div>
             
             {/* Main navigation links - Desktop */}
-            <div className="hidden md:flex items-center ml-8 space-x-3">
+            <div className="hidden md:flex items-center ml-4 space-x-2">
               <Link href="/" className="flex items-center px-3 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors">
                 <Image src="/header/home.webp" alt="Home" width={18} height={18} className="w-[18px] h-[18px]" />
               </Link>
               
               {/* Wrap events, official odds, synthesis, marketplace, achievement, rank in a div */}
               <div className="flex items-center mx-4 bg-[rgba(74,62,119,0.2)] rounded-md px-2 space-x-3">
-                <Link href="/events" className="flex items-center px-3 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors">
+                <Link href="/shop" className="flex items-center px-3 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors">
                   <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                    <path d="M7 4c0-1.1.9-2 2-2h6c1.1 0 2 .9 2 2v0H7V4zm0 2V5h10v1h3c1.1 0 2 .9 2 2v11c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2h3zM4 8v11h16V8H4zm6 3h4v2h-4v-2z"/>
                   </svg>
-                  <span className="ml-1">Events</span>
+                  <span className="ml-1">Shop</span>
                 </Link>
                 <Link href="/official-packs" className="flex items-center px-3 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors">
                   <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24">
@@ -541,6 +552,15 @@ const Navbar = () => {
                 <Link href="/rank" className="flex items-center px-3 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors">
                   <Image src="/header/rankIcon.webp" alt="Ranking" width={18} height={18} className="w-[18px] h-[18px]" />
                   <span className="ml-1">Ranking</span>
+                </Link>
+                <Link
+                  href="https://discord.gg/9x3YX7DXQj"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center px-2 py-2 text-gray-300 hover:text-white border-b-2 border-transparent hover:border-purple-500 transition-colors"
+                >
+                  <Image src="/payment/gift.png" alt="Gift Code" width={18} height={18} className="w-[18px] h-[18px]" />
+                  <span className="ml-1">Gift Code</span>
                 </Link>
               </div>
             </div>
@@ -631,8 +651,8 @@ const Navbar = () => {
                           Listings
                         </Link>
                         <Link href="/user/withdrawals" className="flex items-center px-3 py-1.5 text-sm text-gray-300 hover:bg-[#3F3F5F] hover:text-white transition-all duration-200 font-medium" onClick={() => setIsUserMenuOpen(false)}>
-                          <Image src="/users/withdrawals.png" alt="Withdrawals" width={14} height={14} className="mr-2" />
-                          Withdrawals
+                          <Image src="/users/withdrawals.png" alt="Orders" width={14} height={14} className="mr-2" />
+                          Orders
                         </Link>
                         <Link href="/user/affiliate" className="flex items-center px-3 py-1.5 text-sm text-gray-300 hover:bg-[#3F3F5F] hover:text-white transition-all duration-200 font-medium" onClick={() => setIsUserMenuOpen(false)}>
                           <Image src="/users/affiliate.png" alt="Affiliate" width={14} height={14} className="mr-2" />
@@ -783,11 +803,11 @@ const Navbar = () => {
                   
                   {/* Mobile menu events, official odds, synthesis, marketplace, achievement, rank group */}
                   <div className="bg-[rgba(74,62,119,0.3)] rounded-md py-1 px-1 space-y-1 border border-purple-500/20">
-                    <Link href="/events/freedaily-box" className="text-gray-300 hover:text-white hover:bg-[#3F3F5F] py-1.5 px-2 rounded-md flex items-center transition-all duration-200" onClick={() => setIsMenuOpen(false)}>
+                    <Link href="/shop" className="text-gray-300 hover:text-white hover:bg-[#3F3F5F] py-1.5 px-2 rounded-md flex items-center transition-all duration-200" onClick={() => setIsMenuOpen(false)}>
                       <svg className="w-[16px] h-[16px]" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                        <path d="M7 4c0-1.1.9-2 2-2h6c1.1 0 2 .9 2 2v0H7V4zm0 2V5h10v1h3c1.1 0 2 .9 2 2v11c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2h3zM4 8v11h16V8H4zm6 3h4v2h-4v-2z"/>
                       </svg>
-                      <span className="ml-2 font-medium">Events</span>
+                      <span className="ml-2 font-medium">Shop</span>
                     </Link>
                     <Link href="/official-packs" className="text-gray-300 hover:text-white hover:bg-[#3F3F5F] py-1.5 px-2 rounded-md flex items-center transition-all duration-200" onClick={() => setIsMenuOpen(false)}>
                       <svg className="w-[16px] h-[16px]" fill="currentColor" viewBox="0 0 24 24">
@@ -818,6 +838,16 @@ const Navbar = () => {
                     <Link href="/rank" className="text-gray-300 hover:text-white hover:bg-[#3F3F5F] py-1.5 px-2 rounded-md flex items-center transition-all duration-200" onClick={() => setIsMenuOpen(false)}>
                       <Image src="/header/rankIcon.webp" alt="Ranking" width={16} height={16} className="w-[16px] h-[16px]" />
                       <span className="ml-2 font-medium">Ranking</span>
+                    </Link>
+                    <Link
+                      href="https://discord.gg/9x3YX7DXQj"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-300 hover:text-white hover:bg-[#3F3F5F] py-1.5 px-2 rounded-md flex items-center transition-all duration-200"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Image src="/payment/gift.png" alt="Gift Code" width={16} height={16} className="w-[16px] h-[16px]" />
+                      <span className="ml-2 font-medium">Gift Code</span>
                     </Link>
                   </div>
                 </div>
@@ -895,8 +925,8 @@ const Navbar = () => {
                       My Listing
                     </Link>
                     <Link href="/user/withdrawals" className="flex items-center px-2.5 py-2 text-gray-300 hover:bg-[#3F3F5F] hover:text-white rounded-md transition-all duration-200 font-medium" onClick={() => setIsMenuOpen(false)}>
-                      <Image src="/users/withdrawals.png" alt="Withdrawals" width={16} height={16} className="w-[16px] h-[16px] mr-2" />
-                      Withdrawals
+                      <Image src="/users/withdrawals.png" alt="Orders" width={16} height={16} className="w-[16px] h-[16px] mr-2" />
+                      Orders
                     </Link>
                     <Link href="/user/affiliate" className="flex items-center px-2.5 py-2 text-gray-300 hover:bg-[#3F3F5F] hover:text-white rounded-md transition-all duration-200 font-medium" onClick={() => setIsMenuOpen(false)}>
                       <Image src="/users/affiliate.png" alt="Affiliate" width={16} height={16} className="w-[16px] h-[16px] mr-2" />

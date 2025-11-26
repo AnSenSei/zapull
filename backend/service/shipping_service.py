@@ -129,7 +129,8 @@ async def get_withdraw_request_by_id(request_id: str, user_id: str, db_client: A
             shippo_label_url=withdraw_request_data.get('shippo_label_url'),
             tracking_number=withdraw_request_data.get('tracking_number'),
             tracking_url=withdraw_request_data.get('tracking_url'),
-            shipping_status=withdraw_request_data.get('shipping_status')
+            shipping_status=withdraw_request_data.get('shipping_status'),
+            card_status=withdraw_request_data.get('card_status')
         )
 
         logger.info(f"Retrieved withdraw request {request_id} for user {user_id} with {len(cards)} cards")
@@ -145,8 +146,8 @@ async def update_withdraw_request_status(
     user_id: str,
     request_id: str,
     status: str,
-    shipping_status: str,
-    db_client: AsyncClient
+    card_status: Optional[str] = None,
+    db_client: AsyncClient = None
 ) -> WithdrawRequestDetail:
     """
     Update the status of a withdraw request and its corresponding card_shipping document.
@@ -155,7 +156,7 @@ async def update_withdraw_request_status(
         user_id: The ID of the user who made the withdraw request
         request_id: The ID of the withdraw request to update
         status: The new status for the withdraw request
-        shipping_status: The new shipping status for the withdraw request
+        card_status: The new card status for the withdraw request (optional)
         db_client: Firestore client
 
     Returns:
@@ -180,21 +181,19 @@ async def update_withdraw_request_status(
             raise HTTPException(status_code=404, detail=f"Withdraw request with ID {request_id} not found for user {user_id}")
 
         # Update the withdraw request status
-        await withdraw_request_ref.update({
-            'status': status,
-            'shipping_status': shipping_status
-        })
+        update_data = {'status': status}
+        if card_status is not None:
+            update_data['card_status'] = card_status
+        
+        await withdraw_request_ref.update(update_data)
 
         # Update the card_shipping document with the same status
         card_shipping_ref = db_client.collection('card_shipping').document(request_id)
         card_shipping_doc = await card_shipping_ref.get()
 
         if card_shipping_doc.exists:
-            await card_shipping_ref.update({
-                'status': status,
-                'shipping_status': shipping_status
-            })
-            logger.info(f"Updated card_shipping document {request_id} with status {status} and shipping_status {shipping_status}")
+            await card_shipping_ref.update(update_data)
+            logger.info(f"Updated card_shipping document {request_id} with status {status}" + (f" and card_status {card_status}" if card_status else ""))
         else:
             logger.warning(f"Card shipping document with ID {request_id} not found, only updated withdraw request")
 
@@ -212,7 +211,9 @@ async def get_all_withdraw_requests_with_cursor(
     limit: int = 10, 
     cursor: Optional[str] = None,
     sort_by: str = "created_at",
-    sort_order: str = "desc"
+    sort_order: str = "desc",
+    status: Optional[str] = None,
+    card_status: Optional[str] = None
 ) -> AllWithdrawRequestsResponse:
     """
     Get all withdraw requests with cursor-based pagination.
@@ -224,6 +225,8 @@ async def get_all_withdraw_requests_with_cursor(
         cursor: The cursor to start after (optional)
         sort_by: The field to sort by (default: "created_at")
         sort_order: The sort order ("asc" or "desc", default: "desc")
+        status: Filter by status (optional)
+        card_status: Filter by card status (optional)
 
     Returns:
         AllWithdrawRequestsResponse object containing the withdraw requests and cursor pagination info
@@ -246,6 +249,14 @@ async def get_all_withdraw_requests_with_cursor(
 
         # Apply sorting
         query = card_shipping_ref.order_by(sort_by, direction=direction)
+        
+        # Apply status filter if provided
+        if status:
+            query = query.where('status', '==', status)
+        
+        # Apply card_status filter if provided
+        if card_status:
+            query = query.where('card_status', '==', card_status)
 
         # Apply cursor pagination if cursor is provided
         if cursor:
@@ -292,7 +303,8 @@ async def get_all_withdraw_requests_with_cursor(
                 user_id=request_data.get('user_id'),
                 user_email=request_data.get('user_email', ''),
                 card_count=request_data.get('card_count'),
-                shipping_address=request_data.get('shipping_address')
+                shipping_address=request_data.get('shipping_address'),
+                card_status=request_data.get('card_status')
             )
             all_withdraw_requests.append(withdraw_request)
 
@@ -318,3 +330,496 @@ async def get_all_withdraw_requests_with_cursor(
         raise HTTPException(status_code=500, detail=f"Failed to get withdraw requests: {str(e)}")
 
 
+async def get_all_shop_orders_with_cursor(
+    db_client: AsyncClient, 
+    limit: int = 10, 
+    cursor: Optional[str] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    status: Optional[str] = None,
+    card_status: Optional[str] = None
+) -> AllWithdrawRequestsResponse:
+    """
+    Get all shop orders with cursor-based pagination.
+    This function retrieves shop orders from the shop_orders collection.
+
+    Args:
+        db_client: Firestore client
+        limit: The maximum number of items to return (default: 10)
+        cursor: The cursor to start after (optional)
+        sort_by: The field to sort by (default: "created_at")
+        sort_order: The sort order ("asc" or "desc", default: "desc")
+        status: Filter by status (optional)
+        card_status: Filter by card status (optional)
+
+    Returns:
+        AllWithdrawRequestsResponse object containing the shop orders and cursor pagination info
+
+    Raises:
+        HTTPException: If there's an error getting the shop orders
+    """
+    try:
+        # Get the shop_orders collection (separate from card_shipping)
+        shop_orders_ref = db_client.collection('shop_orders')
+        
+        # Start with base query
+        query = shop_orders_ref
+
+        # Determine sort direction
+        if sort_order.lower() == "desc":
+            direction = firestore.Query.DESCENDING
+        elif sort_order.lower() == "asc":
+            direction = firestore.Query.ASCENDING
+        else:
+            logger.warning(f"Invalid sort_order '{sort_order}'. Defaulting to DESCENDING.")
+            direction = firestore.Query.DESCENDING
+
+        # Apply sorting
+        query = query.order_by(sort_by, direction=direction)
+        
+        # Apply status filter if provided
+        if status:
+            query = query.where('status', '==', status)
+        
+        # Apply card_status filter if provided
+        if card_status:
+            query = query.where('card_status', '==', card_status)
+
+        # Apply cursor pagination if cursor is provided
+        if cursor:
+            try:
+                # Get the document at the cursor
+                cursor_doc_ref = shop_orders_ref.document(cursor)
+                cursor_doc = await cursor_doc_ref.get()
+
+                if not cursor_doc.exists:
+                    raise HTTPException(status_code=400, detail=f"Invalid cursor: document with ID {cursor} not found")
+
+                # Start after the cursor document
+                query = query.start_after(cursor_doc)
+            except Exception as e:
+                logger.error(f"Error applying cursor pagination: {e}", exc_info=True)
+                raise HTTPException(status_code=400, detail=f"Invalid cursor: {str(e)}")
+
+        # Apply limit
+        query = query.limit(limit + 1)  # Get one extra to check if there are more items
+
+        # Execute the query
+        logger.info(f"Executing Firestore query for all shop orders with cursor pagination")
+        shop_orders = await query.get()
+
+        # Check if there are more items
+        has_more = len(shop_orders) > limit
+
+        # Remove the extra item if there are more
+        if has_more:
+            shop_orders = shop_orders[:limit]
+
+        all_shop_orders = []
+        next_cursor = None
+
+        # Convert each shop order to a WithdrawRequest object (using same schema)
+        for order in shop_orders:
+            order_data = order.to_dict()
+
+            # Shop orders use 'order_date' instead of 'request_date'
+            # Fall back to created_at if order_date is not available
+            request_date = order_data.get('order_date') or order_data.get('created_at')
+
+            shop_order = WithdrawRequest(
+                id=order.id,
+                created_at=order_data.get('created_at'),
+                request_date=request_date,
+                status=order_data.get('status', 'pending'),
+                user_id=order_data.get('user_id'),
+                user_email=order_data.get('user_email', ''),
+                card_count=order_data.get('card_count'),
+                shipping_address=order_data.get('shipping_address'),
+                card_status=order_data.get('card_status')
+            )
+            all_shop_orders.append(shop_order)
+
+            # Set the next cursor to the last document ID
+            next_cursor = order.id
+
+        # Create and return the response
+        response = AllWithdrawRequestsResponse(
+            withdraw_requests=all_shop_orders,
+            pagination=CursorPaginationInfo(
+                next_cursor=next_cursor if has_more else None,
+                limit=limit,
+                has_more=has_more
+            )
+        )
+
+        logger.info(f"Retrieved {len(all_shop_orders)} shop orders with cursor pagination")
+        return response
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting all shop orders with cursor pagination: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get shop orders: {str(e)}")
+
+
+async def get_shop_order_by_id(order_id: str, user_id: str, db_client: AsyncClient) -> WithdrawRequestDetail:
+    """
+    Get a specific shop order by ID from the shop_orders collection.
+
+    Args:
+        order_id: The ID of the shop order to get
+        user_id: The ID of the user who made the shop order
+        db_client: Firestore client
+
+    Returns:
+        WithdrawRequestDetail object containing the shop order details
+
+    Raises:
+        HTTPException: If there's an error getting the shop order
+    """
+    try:
+        # Get the shop order from shop_orders collection
+        shop_order_ref = db_client.collection('shop_orders').document(order_id)
+        shop_order_doc = await shop_order_ref.get()
+
+        if not shop_order_doc.exists:
+            raise HTTPException(status_code=404, detail=f"Shop order with ID {order_id} not found")
+
+        # Get the shop order data
+        shop_order_data = shop_order_doc.to_dict()
+        
+        # Verify the user_id matches
+        if shop_order_data.get('user_id') != user_id:
+            raise HTTPException(status_code=404, detail=f"Shop order with ID {order_id} not found for user {user_id}")
+
+        # Shop orders typically don't have cards subcollection, but have cards array
+        items = shop_order_data.get('cards', [])
+        cards = []
+        
+        # Convert items to UserCard format if needed
+        for item in items:
+            card = UserCard(
+                id=item.get('card_id', ''),
+                card_reference=item.get('card_reference', ''),
+                card_name=item.get('card_name', ''),
+                image_url=item.get('image_url', ''),
+                rarity=item.get('rarity', 0),
+                quantity=item.get('quantity', 1),
+                point_worth=item.get('point_worth', 0),
+                locked_quantity=item.get('locked_quantity', 0)
+            )
+            cards.append(card)
+
+        # Create and return the WithdrawRequestDetail object
+        # Shop orders use 'order_date' instead of 'request_date'
+        request_date = shop_order_data.get('order_date') or shop_order_data.get('created_at')
+        
+        shop_order_detail = WithdrawRequestDetail(
+            id=shop_order_doc.id,
+            created_at=shop_order_data.get('created_at'),
+            request_date=request_date,
+            status=shop_order_data.get('status', 'pending'),
+            user_id=shop_order_data.get('user_id', user_id),
+            user_email=shop_order_data.get('user_email', ''),
+            card_count=shop_order_data.get('card_count', len(cards)),
+            cards=cards,
+            shipping_address=shop_order_data.get('shipping_address'),
+            shippo_address_id=shop_order_data.get('shippo_address_id'),
+            shippo_parcel_id=shop_order_data.get('shippo_parcel_id'),
+            shippo_shipment_id=shop_order_data.get('shippo_shipment_id'),
+            shippo_transaction_id=shop_order_data.get('shippo_transaction_id'),
+            shippo_label_url=shop_order_data.get('shippo_label_url'),
+            tracking_number=shop_order_data.get('tracking_number'),
+            tracking_url=shop_order_data.get('tracking_url'),
+            shipping_status=shop_order_data.get('shipping_status'),
+            card_status=shop_order_data.get('card_status')
+        )
+
+        logger.info(f"Retrieved shop order {order_id} for user {user_id}")
+        return shop_order_detail
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting shop order {order_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get shop order: {str(e)}")
+
+
+async def update_shop_order_status(
+    user_id: str,
+    order_id: str,
+    status: str,
+    card_status: Optional[str] = None,
+    db_client: AsyncClient = None
+) -> WithdrawRequestDetail:
+    """
+    Update the status of a shop order.
+
+    Args:
+        user_id: The ID of the user who made the shop order
+        order_id: The ID of the shop order to update
+        status: The new status for the shop order
+        card_status: The new card status for the shop order (optional)
+        db_client: Firestore client
+
+    Returns:
+        WithdrawRequestDetail object containing the updated shop order details
+
+    Raises:
+        HTTPException: If there's an error updating the shop order
+    """
+    try:
+        # Get the shop order from shop_orders collection
+        shop_order_ref = db_client.collection('shop_orders').document(order_id)
+        shop_order_doc = await shop_order_ref.get()
+
+        if not shop_order_doc.exists:
+            raise HTTPException(status_code=404, detail=f"Shop order with ID {order_id} not found")
+
+        # Get the shop order data
+        shop_order_data = shop_order_doc.to_dict()
+        
+        # Verify the user_id matches
+        if shop_order_data.get('user_id') != user_id:
+            raise HTTPException(status_code=404, detail=f"Shop order with ID {order_id} not found for user {user_id}")
+
+        # Update the shop order status
+        update_data = {'status': status}
+        if card_status is not None:
+            update_data['card_status'] = card_status
+        
+        await shop_order_ref.update(update_data)
+
+        logger.info(f"Updated shop order {order_id} for user {user_id} with status {status}" + (f" and card_status {card_status}" if card_status else ""))
+
+        # Get the updated shop order
+        return await get_shop_order_by_id(order_id, user_id, db_client)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error updating shop order {order_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update shop order: {str(e)}")
+
+
+async def archive_withdraw_request(
+    user_id: str,
+    request_id: str,
+    db_client: AsyncClient
+) -> Dict[str, Any]:
+    """
+    Archive a withdraw request by moving it to the card_shipping_archived collection.
+
+    Args:
+        user_id: The ID of the user who made the withdraw request
+        request_id: The ID of the withdraw request to archive
+        db_client: Firestore client
+
+    Returns:
+        Dict containing the result of the operation
+
+    Raises:
+        HTTPException: If there's an error archiving the withdraw request
+    """
+    try:
+        # Get the card_shipping document
+        card_shipping_ref = db_client.collection('card_shipping').document(request_id)
+        card_shipping_doc = await card_shipping_ref.get()
+
+        if not card_shipping_doc.exists:
+            raise HTTPException(status_code=404, detail=f"Shipping request with ID {request_id} not found")
+
+        shipping_data = card_shipping_doc.to_dict()
+        
+        # Add archived_at timestamp
+        shipping_data['archived_at'] = datetime.utcnow().isoformat()
+        shipping_data['archived_by'] = 'admin' # Could be passed in if we had admin user info
+
+        # Create document in card_shipping_archived
+        archived_ref = db_client.collection('card_shipping_archived').document(request_id)
+        await archived_ref.set(shipping_data)
+
+
+        # Delete from card_shipping
+        await card_shipping_ref.delete()
+
+        logger.info(f"Archived withdraw request {request_id} for user {user_id}")
+        
+        return {"success": True, "message": "Shipping request archived successfully"}
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error archiving withdraw request {request_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to archive withdraw request: {str(e)}")
+
+
+async def unarchive_withdraw_request(
+    user_id: str,
+    request_id: str,
+    db_client: AsyncClient
+) -> Dict[str, Any]:
+    """
+    Unarchive a withdraw request by moving it from card_shipping_archived back to card_shipping.
+
+    Args:
+        user_id: The ID of the user who made the withdraw request
+        request_id: The ID of the withdraw request to unarchive
+        db_client: Firestore client
+
+    Returns:
+        Dict containing the result of the operation
+
+    Raises:
+        HTTPException: If there's an error unarchiving the withdraw request
+    """
+    try:
+        # Get the archived document
+        archived_ref = db_client.collection('card_shipping_archived').document(request_id)
+        archived_doc = await archived_ref.get()
+
+        if not archived_doc.exists:
+            raise HTTPException(status_code=404, detail=f"Archived shipping request with ID {request_id} not found")
+
+        shipping_data = archived_doc.to_dict()
+        
+        # Remove archive metadata
+        if 'archived_at' in shipping_data:
+            del shipping_data['archived_at']
+        if 'archived_by' in shipping_data:
+            del shipping_data['archived_by']
+
+        # Create document in card_shipping
+        card_shipping_ref = db_client.collection('card_shipping').document(request_id)
+        await card_shipping_ref.set(shipping_data)
+
+        # Delete from card_shipping_archived
+        await archived_ref.delete()
+
+        logger.info(f"Unarchived withdraw request {request_id} for user {user_id}")
+        
+        return {"success": True, "message": "Shipping request unarchived successfully"}
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error unarchiving withdraw request {request_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to unarchive withdraw request: {str(e)}")
+
+
+async def get_all_archived_withdraw_requests_with_cursor(
+    db_client: AsyncClient, 
+    limit: int = 10, 
+    cursor: Optional[str] = None,
+    sort_by: str = "archived_at",
+    sort_order: str = "desc",
+    status: Optional[str] = None,
+    card_status: Optional[str] = None
+) -> AllWithdrawRequestsResponse:
+    """
+    Get all archived withdraw requests with cursor-based pagination.
+    This function retrieves withdraw requests from the card_shipping_archived collection.
+
+    Args:
+        db_client: Firestore client
+        limit: The maximum number of items to return (default: 10)
+        cursor: The cursor to start after (optional)
+        sort_by: The field to sort by (default: "archived_at")
+        sort_order: The sort order ("asc" or "desc", default: "desc")
+        status: Filter by status (optional)
+        card_status: Filter by card status (optional)
+
+    Returns:
+        AllWithdrawRequestsResponse object containing the withdraw requests and cursor pagination info
+    """
+    try:
+        # Get the card_shipping_archived collection
+        archived_ref = db_client.collection('card_shipping_archived')
+
+        # Determine sort direction
+        if sort_order.lower() == "desc":
+            direction = firestore.Query.DESCENDING
+        elif sort_order.lower() == "asc":
+            direction = firestore.Query.ASCENDING
+        else:
+            logger.warning(f"Invalid sort_order '{sort_order}'. Defaulting to DESCENDING.")
+            direction = firestore.Query.DESCENDING
+
+        # Apply sorting
+        query = archived_ref.order_by(sort_by, direction=direction)
+        
+        # Apply status filter if provided
+        if status:
+            query = query.where('status', '==', status)
+        
+        # Apply card_status filter if provided
+        if card_status:
+            query = query.where('card_status', '==', card_status)
+
+        # Apply cursor pagination if cursor is provided
+        if cursor:
+            try:
+                # Get the document at the cursor
+                cursor_doc_ref = archived_ref.document(cursor)
+                cursor_doc = await cursor_doc_ref.get()
+
+                if not cursor_doc.exists:
+                    raise HTTPException(status_code=400, detail=f"Invalid cursor: document with ID {cursor} not found")
+
+                # Start after the cursor document
+                query = query.start_after(cursor_doc)
+            except Exception as e:
+                logger.error(f"Error applying cursor pagination: {e}", exc_info=True)
+                raise HTTPException(status_code=400, detail=f"Invalid cursor: {str(e)}")
+
+        # Apply limit
+        query = query.limit(limit + 1)
+
+        # Execute the query
+        logger.info(f"Executing Firestore query for archived withdraw requests")
+        withdraw_requests = await query.get()
+
+        # Check if there are more items
+        has_more = len(withdraw_requests) > limit
+
+        # Remove the extra item if there are more
+        if has_more:
+            withdraw_requests = withdraw_requests[:limit]
+
+        all_withdraw_requests = []
+        next_cursor = None
+
+        # Convert each withdraw request to a WithdrawRequest object
+        for request in withdraw_requests:
+            request_data = request.to_dict()
+
+            withdraw_request = WithdrawRequest(
+                id=request.id,
+                created_at=request_data.get('created_at'),
+                request_date=request_data.get('request_date'),
+                status=request_data.get('status', 'pending'),
+                user_id=request_data.get('user_id'),
+                user_email=request_data.get('user_email', ''),
+                card_count=request_data.get('card_count'),
+                shipping_address=request_data.get('shipping_address'),
+                card_status=request_data.get('card_status')
+            )
+            all_withdraw_requests.append(withdraw_request)
+
+            # Set the next cursor to the last document ID
+            next_cursor = request.id
+
+        # Create and return the response
+        response = AllWithdrawRequestsResponse(
+            withdraw_requests=all_withdraw_requests,
+            pagination=CursorPaginationInfo(
+                next_cursor=next_cursor if has_more else None,
+                limit=limit,
+                has_more=has_more
+            )
+        )
+
+        logger.info(f"Retrieved {len(all_withdraw_requests)} archived withdraw requests")
+        return response
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting archived withdraw requests: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get archived withdraw requests: {str(e)}")
