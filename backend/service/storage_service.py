@@ -1003,6 +1003,9 @@ async def clean_fusion_references(document_id: str, collection_name: str | None 
                     'used_in_fusion': updated_fusions
                 })
 
+                # Propagate the update to all packs
+                await _update_card_in_all_packs(document_id, effective_collection_name, {'used_in_fusion': updated_fusions})
+
                 logger.info(f"Removed fusion information from card '{document_id}' (with collection_id '{effective_collection_name}') for fusion ID '{fusion_id_to_remove}'")
             else:
                 # Iterate through all fusion recipes referenced in used_in_fusion
