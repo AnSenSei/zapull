@@ -8,7 +8,6 @@ from models.schemas import (UserCard, UserCardsResponse, UserCardListResponse, D
 from models.pack_schemas import StoredCardInfo
 from service.card_service import (
     draw_card_from_pack,
-    draw_multiple_cards_from_pack,
     draw_multiple_cards_from_pack_optimized,
     demo_draw_multiple_cards_from_pack,
     draw_daily_free_box,

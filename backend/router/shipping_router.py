@@ -223,3 +223,92 @@ async def update_shop_order_status_route(
     except Exception as e:
         logger.error(f"Error updating shop order {order_id} for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while updating the shop order status")
+
+@router.post("/withdraw-requests/{user_id}/{request_id}/archive")
+async def archive_withdraw_request_route(
+    user_id: str = Path(..., description="The ID of the user who made the withdraw request"),
+    request_id: str = Path(..., description="The ID of the withdraw request to archive"),
+    db: firestore.AsyncClient = Depends(get_firestore_client)
+):
+    """
+    Archive a withdraw request.
+
+    This endpoint:
+    1. Moves the shipping request from 'card_shipping' to 'card_shipping_archived'
+    2. Updates the status in the user's withdraw_requests collection to 'archived'
+    """
+    try:
+        from service.shipping_service import archive_withdraw_request
+        
+        result = await archive_withdraw_request(
+            user_id=user_id,
+            request_id=request_id,
+            db_client=db
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error archiving withdraw request {request_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while archiving the withdraw request")
+
+
+@router.post("/withdraw-requests/{user_id}/{request_id}/unarchive")
+async def unarchive_withdraw_request_route(
+    user_id: str = Path(..., description="The ID of the user who made the withdraw request"),
+    request_id: str = Path(..., description="The ID of the withdraw request to unarchive"),
+    db: firestore.AsyncClient = Depends(get_firestore_client)
+):
+    """
+    Unarchive a withdraw request.
+
+    This endpoint:
+    1. Moves the shipping request from 'card_shipping_archived' back to 'card_shipping'
+    """
+    try:
+        from service.shipping_service import unarchive_withdraw_request
+        
+        result = await unarchive_withdraw_request(
+            user_id=user_id,
+            request_id=request_id,
+            db_client=db
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error unarchiving withdraw request {request_id} for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while unarchiving the withdraw request")
+
+
+@router.get("/withdraw-requests/archived", response_model=AllWithdrawRequestsResponse)
+async def get_all_archived_withdraw_requests_route(
+    limit: int = Query(10, description="Maximum number of items to return (default: 10)"),
+    cursor: Optional[str] = Query(None, description="Cursor for pagination (optional)"),
+    sort_by: str = Query("archived_at", description="Field to sort by (default: archived_at)"),
+    sort_order: str = Query("desc", description="Sort order (asc or desc, default: desc)"),
+    status: Optional[str] = Query(None, description="Filter by status (optional)"),
+    card_status: Optional[str] = Query(None, description="Filter by card status (optional)"),
+    db: firestore.AsyncClient = Depends(get_firestore_client)
+):
+    """
+    List all archived withdraw requests with cursor-based pagination.
+    """
+    try:
+        from service.shipping_service import get_all_archived_withdraw_requests_with_cursor
+        
+        response = await get_all_archived_withdraw_requests_with_cursor(
+            db_client=db,
+            limit=limit,
+            cursor=cursor,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            status=status,
+            card_status=card_status
+        )
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting archived withdraw requests: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while retrieving archived withdraw requests")

@@ -5,6 +5,7 @@
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane label="卡片提取 (Cards)" name="cards"></el-tab-pane>
         <el-tab-pane label="商店订单 (Shop)" name="shop"></el-tab-pane>
+        <el-tab-pane label="已归档 (Archived)" name="archived"></el-tab-pane>
       </el-tabs>
     </el-card>
     
@@ -93,6 +94,22 @@
           <template #default="{ row }">
             <el-button link type="primary" @click="handleView(row)">查看</el-button>
             <el-button link type="primary" @click="handleUpdateStatus(row)">更新状态</el-button>
+            <el-button 
+              v-if="activeTab !== 'archived'" 
+              link 
+              type="danger" 
+              @click="handleArchive(row)"
+            >
+              归档
+            </el-button>
+            <el-button 
+              v-else 
+              link 
+              type="success" 
+              @click="handleUnarchive(row)"
+            >
+              取消归档
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -255,11 +272,14 @@ import { useRouter } from 'vue-router'
 import { 
   getShippingList,
   getInactiveShippingList,
+  getArchivedShippingList,
   getShippingDetail,
   getShopOrderDetail,
   updateShippingStatus,
   updateShopOrderStatus,
   updateShippingActiveStatus,
+  archiveShipping,
+  unarchiveShipping,
   type ShippingInfo,
   type UpdateShippingStatusParams
 } from '../../api/shipping-new'
@@ -313,7 +333,13 @@ const updateStatusForm = reactive<UpdateShippingStatusParams>({
 // 处理标签页切换
 const handleTabChange = (tab: string) => {
   // 自动设置类型过滤器以匹配标签页
-  searchForm.type = tab === 'shop' ? 'shop' : 'card'
+  if (tab === 'shop') {
+    searchForm.type = 'shop'
+  } else if (tab === 'cards') {
+    searchForm.type = 'card'
+  } else {
+    searchForm.type = '' // Archived doesn't enforce type
+  }
   currentPage.value = 1
   cursors.value = {}
   fetchShippingList(1)
@@ -359,6 +385,8 @@ const fetchShippingList = async (page: number = 1) => {
         status: params.status
       }
       response = await getShopOrders(shopParams)
+    } else if (activeTab.value === 'archived') {
+      response = await getArchivedShippingList(params)
     } else if (activeStatus.value === 'inactive') {
       response = await getInactiveShippingList(params)
     } else {
@@ -570,6 +598,30 @@ const toggleActiveStatus = async (row: ShippingInfo) => {
   } catch (error) {
     console.error('更新物流激活状态失败：', error)
     ElMessage.error('更新物流激活状态失败')
+  }
+}
+
+// 归档物流
+const handleArchive = async (row: ShippingInfo) => {
+  try {
+    await archiveShipping(row.user_id, row.id)
+    ElMessage.success('归档成功')
+    fetchShippingList(currentPage.value) // 刷新当前页
+  } catch (error) {
+    console.error('归档失败：', error)
+    ElMessage.error('归档失败')
+  }
+}
+
+// 取消归档物流
+const handleUnarchive = async (row: ShippingInfo) => {
+  try {
+    await unarchiveShipping(row.user_id, row.id)
+    ElMessage.success('取消归档成功')
+    fetchShippingList(currentPage.value) // 刷新当前页
+  } catch (error) {
+    console.error('取消归档失败：', error)
+    ElMessage.error('取消归档失败')
   }
 }
 

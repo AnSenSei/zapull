@@ -96,8 +96,8 @@ export interface UpdateShippingStatusParams {
 }
 
 export const updateShippingStatus = async (
-  userId: string, 
-  requestId: string, 
+  userId: string,
+  requestId: string,
   params: UpdateShippingStatusParams
 ): Promise<any> => {
   return request.put(`/shipping/withdraw-requests/${userId}/${requestId}/status`, params)
@@ -119,9 +119,34 @@ export const getShopOrderDetail = async (userId: string, orderId: string): Promi
 
 // 更新商店订单状态
 export const updateShopOrderStatus = async (
-  userId: string, 
-  orderId: string, 
+  userId: string,
+  orderId: string,
   params: UpdateShippingStatusParams
 ): Promise<any> => {
   return request.put(`/shipping/shop-orders/${userId}/${orderId}/status`, params)
+}
+
+
+// 归档物流
+export const archiveShipping = async (userId: string, requestId: string): Promise<any> => {
+  return request.post(`/shipping/withdraw-requests/${userId}/${requestId}/archive`)
+}
+
+// 获取已归档物流列表
+export const getArchivedShippingList = async (
+  params: {
+    limit?: number
+    cursor?: string
+    sort_by?: string
+    sort_order?: 'asc' | 'desc'
+    status?: string
+    card_status?: string
+  }
+): Promise<ShippingListResponse> => {
+  return request.get('/shipping/withdraw-requests/archived', { params })
+}
+
+// 取消归档物流
+export const unarchiveShipping = async (userId: string, requestId: string): Promise<any> => {
+  return request.post(`/shipping/withdraw-requests/${userId}/${requestId}/unarchive`)
 }
