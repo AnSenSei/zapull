@@ -51,6 +51,7 @@ from router import marketplace_router # Import the marketplace router
 from router import achievement_router
 from router import shipping_router # Import the shipping router
 from router import user_router # Import the user router
+from router import admin_router # Import the admin router
 
 # Configure logging with structured logger
 logger = get_logger("main") # Use the logger from config
@@ -119,8 +120,9 @@ api_v1.include_router(marketplace_router.router) # Include the marketplace route
 api_v1.include_router(achievement_router.router)
 api_v1.include_router(shipping_router.router) # Include the shipping router
 api_v1.include_router(user_router.router) # Include the user router
+api_v1.include_router(admin_router.router) # Include the admin router
 
-logger.info("Gacha routers (packs, cards, draw), storage router, fusion router, marketplace router, achievement router, shipping router, and user router included in the sub-API.")
+logger.info("Gacha routers (packs, cards, draw), storage router, fusion router, marketplace router, achievement router, shipping router, user router, and admin router included in the sub-API.")
 
 # Mount the sub-API (api_v1) under the main app
 main_app.mount(f"/{SERVICE_PATH}/api/{API_VERSION}", api_v1)

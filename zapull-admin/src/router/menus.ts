@@ -145,6 +145,32 @@ const menus = [
         icon: 'Van'
       }
     ]
+  },
+  // 抽卡模拟器
+  {
+    path: '/simulate-draw',
+    meta: { title: '抽卡模拟器' },
+    icon: 'MagicStick',
+    children: [
+      {
+        path: '/simulate-draw',
+        meta: { title: '模拟抽卡' },
+        icon: 'MagicStick'
+      }
+    ]
+  }
+]
+  {
+    path: '/admin',
+    meta: { title: '管理员工具' },
+    icon: 'Tools',
+    children: [
+      {
+        path: '/admin/simulate-draw',
+        meta: { title: '模拟抽卡' },
+        icon: 'Refresh'
+      }
+    ]
   }
 ]
 

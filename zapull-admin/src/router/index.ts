@@ -226,6 +226,21 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: '物流信息' }
       }
     ]
+  },
+  // 抽卡模拟器路由
+  {
+    path: '/simulate-draw',
+    component: Layout,
+    redirect: '/simulate-draw',
+    meta: { title: '抽卡模拟器', icon: 'MagicStick' },
+    children: [
+      {
+        path: '',
+        name: 'SimulateDraw',
+        component: () => import('@/views/simulate-draw/index.vue'),
+        meta: { title: '模拟抽卡' }
+      }
+    ]
   }
 ]
 
