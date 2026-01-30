@@ -178,3 +178,238 @@ export function addPointsToUser(params: {
     params
   })
 }
+
+// Highlight card request
+export interface HighlightCardRequest {
+  email: string
+  card_collection_id: string
+  card_id: string
+  card_data: Record<string, any>
+}
+
+// Highlight card response
+export interface HighlightCardResponse {
+  success: boolean
+  action: string
+  card_id: string
+  card_name?: string
+  email?: string
+}
+
+// Add a card to user's highlights
+export function highlightCard(params: HighlightCardRequest) {
+  return request<HighlightCardResponse>({
+    url: '/admin/highlight-card',
+    method: 'post',
+    data: params
+  })
+}
+
+// Highlight card data from backend
+export interface HighlightCardData {
+  id: string
+  card_name?: string
+  image_url?: string
+  point_worth?: number
+  rarity?: number
+  color?: string
+  card_collection_id?: string
+  added_at?: any
+}
+
+// Get user highlights response
+export interface GetUserHighlightsResponse {
+  success: boolean
+  email: string
+  user_id: string
+  highlights: HighlightCardData[]
+}
+
+// Get user's highlights
+export function getUserHighlights(email: string) {
+  return request<GetUserHighlightsResponse>({
+    url: '/admin/user-highlights',
+    method: 'get',
+    params: { email }
+  })
+}
+
+// Remove a card from user's highlights
+export function removeHighlightCard(email: string, cardId: string) {
+  return request<HighlightCardResponse>({
+    url: '/admin/highlight-card',
+    method: 'delete',
+    params: { email, card_id: cardId }
+  })
+}
+
+// Admin user data
+export interface AdminUser {
+  id: string
+  email: string
+  display_name: string
+  avatar: string
+  points_balance: number
+  level: number
+}
+
+// Create admin user request
+export interface CreateAdminUserRequest {
+  email: string
+  display_name: string
+  initial_points?: number
+  avatar?: string
+}
+
+// Create admin user response
+export interface CreateAdminUserResponse {
+  success: boolean
+  user: {
+    id: string
+    email: string
+    displayName: string
+    pointsBalance: number
+  }
+}
+
+// Get admin users response
+export interface GetAdminUsersResponse {
+  success: boolean
+  users: AdminUser[]
+}
+
+// Create a new user via admin panel
+export function createAdminUser(params: CreateAdminUserRequest) {
+  return request<CreateAdminUserResponse>({
+    url: '/admin/create-user',
+    method: 'post',
+    data: params
+  })
+}
+
+// Get all admin-created users
+export function getAdminUsers() {
+  return request<GetAdminUsersResponse>({
+    url: '/admin/admin-users',
+    method: 'get'
+  })
+}
+
+// Achievement data
+export interface Achievement {
+  id: string
+  name: string
+  description: string
+  condition: {
+    type: string
+    target?: number
+    point_worth?: number
+  }
+  reward: Array<{
+    type: string
+    amount?: number
+    emblemId?: string
+    url?: string
+  }>
+  rarity: number
+  rank: number
+}
+
+// User achievement data
+export interface UserAchievement {
+  achievement_id: string
+  acquired: boolean
+  awardedAt?: any
+  progress?: number
+}
+
+// Get all achievements response
+export interface GetAllAchievementsResponse {
+  success: boolean
+  achievements: Achievement[]
+}
+
+// Get user achievements response
+export interface GetUserAchievementsResponse {
+  success: boolean
+  email: string
+  user_id: string
+  achievements: UserAchievement[]
+}
+
+// Grant achievement response
+export interface GrantAchievementResponse {
+  success: boolean
+  action?: string
+  achievement_id: string
+  achievement_name?: string
+  email?: string
+  error?: string
+}
+
+// Update admin user request
+export interface UpdateAdminUserRequest {
+  user_id: string
+  display_name?: string
+  avatar?: string
+  points_balance?: number
+}
+
+// Update admin user response
+export interface UpdateAdminUserResponse {
+  success: boolean
+  action?: string
+  user_id: string
+  user?: {
+    id: string
+    email: string
+    display_name: string
+    avatar: string
+    points_balance: number
+    level: number
+  }
+}
+
+// Get all achievements
+export function getAllAchievements() {
+  return request<GetAllAchievementsResponse>({
+    url: '/admin/achievements',
+    method: 'get'
+  })
+}
+
+// Get user achievements
+export function getUserAchievements(email: string) {
+  return request<GetUserAchievementsResponse>({
+    url: '/admin/user-achievements',
+    method: 'get',
+    params: { email }
+  })
+}
+
+// Grant achievement to user
+export function grantAchievement(params: { email: string; achievement_id: string }) {
+  return request<GrantAchievementResponse>({
+    url: '/admin/grant-achievement',
+    method: 'post',
+    data: params
+  })
+}
+
+// Revoke achievement from user
+export function revokeAchievement(email: string, achievementId: string) {
+  return request<GrantAchievementResponse>({
+    url: '/admin/revoke-achievement',
+    method: 'delete',
+    params: { email, achievement_id: achievementId }
+  })
+}
+
+// Update admin user
+export function updateAdminUser(params: UpdateAdminUserRequest) {
+  return request<UpdateAdminUserResponse>({
+    url: '/admin/admin-user',
+    method: 'put',
+    data: params
+  })
+}

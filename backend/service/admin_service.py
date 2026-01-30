@@ -1,10 +1,11 @@
 """
 Admin service for simulating card draws.
 This allows administrators to simulate draws for users (by email) which updates
-weekly_spent and top_hits without requiring payment.
+weekly_spent, top_hits, and user stats without actually consuming inventory.
 """
 
 import random
+import math
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from typing import List, Dict, Any, Optional
@@ -43,6 +44,115 @@ async def get_user_by_email(email: str, db_client: AsyncClient) -> Optional[Dict
     except Exception as e:
         logger.error(f"Error looking up user by email {email}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to look up user: {str(e)}")
+
+
+async def create_admin_user(
+    email: str,
+    display_name: str,
+    db_client: AsyncClient,
+    initial_points: int = 10000,
+    avatar: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Create a new user via admin panel.
+    
+    Args:
+        email: User's email address
+        display_name: User's display name
+        db_client: Firestore client
+        initial_points: Initial points balance (default 10000)
+        avatar: Optional avatar URL or base64 data
+        
+    Returns:
+        Created user data
+    """
+    try:
+        # Check if user already exists
+        existing_user = await get_user_by_email(email, db_client)
+        if existing_user:
+            raise HTTPException(status_code=400, detail=f"User with email '{email}' already exists")
+        
+        # Generate default avatar URL using UI Avatars if none provided
+        if not avatar:
+            # Use UI Avatars service for default avatar with initials
+            encoded_name = display_name.replace(' ', '+')
+            avatar = f"https://ui-avatars.com/api/?name={encoded_name}&background=random&color=fff&size=128"
+        
+        # Create user document
+        users_ref = db_client.collection('users')
+        new_user_ref = users_ref.document()
+        
+        user_data = {
+            'email': email,
+            'displayName': display_name,
+            'avatar': avatar,
+            'pointsBalance': initial_points,
+            'level': 1,
+            'totalPointsSpent': 0,
+            'totalCashRecharged': 0,
+            'totalFusion': 0,
+            'total_drawn': 0,
+            'createdAt': SERVER_TIMESTAMP,
+            'admin_created': True  # Mark as admin-created user
+        }
+        
+        await new_user_ref.set(user_data)
+        
+        logger.info(f"Admin created new user: {email} with ID {new_user_ref.id}")
+        
+        # Return serializable data (exclude SERVER_TIMESTAMP)
+        return {
+            'id': new_user_ref.id,
+            'email': email,
+            'displayName': display_name,
+            'avatar': avatar,
+            'pointsBalance': initial_points,
+            'level': 1,
+            'admin_created': True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating admin user {email}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
+
+
+async def get_admin_created_users(db_client: AsyncClient) -> List[Dict[str, Any]]:
+    """
+    Get all users created via admin panel.
+    
+    Args:
+        db_client: Firestore client
+        
+    Returns:
+        List of admin-created users
+    """
+    try:
+        users_ref = db_client.collection('users')
+        # Simple query without order_by to avoid composite index requirement
+        query = users_ref.where('admin_created', '==', True).limit(100)
+        docs = await query.get()
+        
+        users = []
+        for doc in docs:
+            user_data = doc.to_dict()
+            user_data['id'] = doc.id
+            users.append({
+                'id': user_data.get('id'),
+                'email': user_data.get('email'),
+                'display_name': user_data.get('displayName'),
+                'avatar': user_data.get('avatar'),
+                'points_balance': user_data.get('pointsBalance', 0),
+                'level': user_data.get('level', 1)
+            })
+        
+        logger.info(f"Retrieved {len(users)} admin-created users")
+        return users
+        
+    except Exception as e:
+        logger.error(f"Error getting admin-created users: {e}")
+        return []
 
 
 async def simulate_draw_for_user(
@@ -466,6 +576,39 @@ async def add_points_to_user(
         raise HTTPException(status_code=500, detail=f"Failed to add points: {str(e)}")
 
 
+async def get_user_highlights(
+    user_id: str,
+    db_client: AsyncClient
+) -> List[Dict[str, Any]]:
+    """
+    Get all cards in user's highlights subcollection.
+    
+    Args:
+        user_id: The user's ID
+        db_client: Firestore client
+        
+    Returns:
+        List of highlight cards
+    """
+    try:
+        user_ref = db_client.collection('users').document(user_id)
+        highlights_ref = user_ref.collection('highlights')
+        docs = await highlights_ref.get()
+        
+        highlights = []
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            highlights.append(data)
+        
+        logger.info(f"Retrieved {len(highlights)} highlights for user {user_id}")
+        return highlights
+        
+    except Exception as e:
+        logger.error(f"Failed to get highlights for user {user_id}: {e}")
+        return []
+
+
 async def add_card_to_user_highlights(
     user_id: str,
     card_collection_id: str,
@@ -499,10 +642,18 @@ async def add_card_to_user_highlights(
                 'card_id': card_id
             }
         
-        # Add card to highlights
+        # Add card to highlights with all required fields for UserCard model
         highlight_data = {
-            **card_data,
+            'id': card_id,
+            'card_name': card_data.get('card_name', ''),
+            'image_url': card_data.get('image_url', ''),
+            'point_worth': card_data.get('point_worth', 0),
+            'rarity': card_data.get('rarity', 1),
+            'card_reference': f"{card_collection_id}/{card_id}",  # Required by UserCard
+            'quantity': 1,  # Required by UserCard
+            'locked_quantity': 0,
             'card_collection_id': card_collection_id,
+            'date_got': SERVER_TIMESTAMP,  # Required for highlights query sorting
             'added_at': SERVER_TIMESTAMP
         }
         await highlights_ref.set(highlight_data)
@@ -524,6 +675,54 @@ async def add_card_to_user_highlights(
         }
 
 
+async def remove_card_from_user_highlights(
+    user_id: str,
+    card_id: str,
+    db_client: AsyncClient
+) -> Dict[str, Any]:
+    """
+    Remove a card from user's highlights subcollection.
+    
+    Args:
+        user_id: The user's ID
+        card_id: The ID of the card to remove
+        db_client: Firestore client
+        
+    Returns:
+        Dict with operation status
+    """
+    try:
+        user_ref = db_client.collection('users').document(user_id)
+        highlights_ref = user_ref.collection('highlights').document(card_id)
+        
+        # Check if exists
+        highlights_doc = await highlights_ref.get()
+        if not highlights_doc.exists:
+            return {
+                'success': True,
+                'action': 'not_found',
+                'card_id': card_id
+            }
+        
+        # Delete from highlights
+        await highlights_ref.delete()
+        
+        logger.info(f"Removed card {card_id} from highlights for user {user_id}")
+        
+        return {
+            'success': True,
+            'action': 'removed',
+            'card_id': card_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to remove card from highlights: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
 async def automated_simulate_draw(
     email: str,
     collection_id: str,
@@ -535,11 +734,11 @@ async def automated_simulate_draw(
     Fully automated draw simulation that:
     1. Looks up user by email
     2. Checks if user has enough points, auto top-up if needed
-    3. Draws cards from the pack
+    3. Draws cards from the pack (without adding to inventory)
     4. Updates weekly_spent
     5. Adds high rarity cards to top_hits
-    6. Adds cards to user's collection
-    7. Adds most expensive card to user's highlights
+    6. Increments user's total_drawn and totalPointsSpent
+    7. Recalculates and updates the user's level
     
     Args:
         email: User's email address
@@ -562,8 +761,6 @@ async def automated_simulate_draw(
             raise HTTPException(status_code=404, detail=f"User with email '{email}' not found")
         
         user_id = user_data['id']
-        display_name = user_data.get('displayName', user_id)
-        avatar = user_data.get('avatar', '')
         current_balance = user_data.get('pointsBalance', 0)
         
         # Get pack price
@@ -590,40 +787,61 @@ async def automated_simulate_draw(
             points_added = points_needed
             logger.info(f"Auto topped up {points_needed} points for user {user_id}")
         
-        # Perform the draw simulation
+        # Perform the draw simulation WITHOUT adding to inventory
         result = await simulate_draw_for_user(
             email=email,
             collection_id=collection_id,
             pack_id=pack_id,
             count=draw_count,
             db_client=db_client,
-            add_to_collection=True  # Always add to collection
+            add_to_collection=False
         )
         
-        # Find and highlight the most expensive card
+        # Update user's total_drawn and totalPointsSpent (but DO NOT change pointsBalance)
+        try:
+            user_ref = db_client.collection('users').document(user_id)
+            await user_ref.update({
+                'total_drawn': Increment(result['total_simulated_spent']),
+                'totalPointsSpent': Increment(result['total_simulated_spent'])
+            })
+            
+            # Re-fetch user to calculate level
+            user_doc_after = await user_ref.get()
+            user_after = user_doc_after.to_dict() or {}
+            total_drawn = user_after.get('total_drawn', 0)
+            current_level = user_after.get('level', 1)
+            new_level = math.floor(total_drawn / 10000) + 1
+            
+            if new_level != current_level:
+                await user_ref.update({'level': new_level})
+                logger.info(f"Updated level for user {user_id} from {current_level} to {new_level} (total_drawn: {total_drawn})")
+            else:
+                logger.info(f"Level for user {user_id} remains at {current_level} (total_drawn: {total_drawn})")
+            
+            result['level_update'] = {
+                'user_id': user_id,
+                'previous_level': current_level,
+                'current_level': new_level,
+                'total_drawn': total_drawn,
+                'added_spent': result['total_simulated_spent']
+            }
+        except Exception as e:
+            logger.error(f"Failed to update total_drawn/level for user {user_id}: {e}")
+        
+        # Determine the most expensive card (for UI selection only)
         most_expensive_card = None
         if result.get('drawn_cards'):
             most_expensive_card = max(result['drawn_cards'], key=lambda c: c.get('point_worth', 0))
-            
-            if most_expensive_card.get('point_worth', 0) > 0:
-                highlight_result = await add_card_to_user_highlights(
-                    user_id=user_id,
-                    card_collection_id=collection_id,
-                    card_id=most_expensive_card['id'],
-                    card_data=most_expensive_card,
-                    db_client=db_client
-                )
-                result['highlight_added'] = highlight_result
         
-        # Add automation summary
+        # Add automation summary (no inventory or highlight changes here)
         result['automation_summary'] = {
             'points_auto_topped_up': points_added,
-            'cards_added_to_collection': True,
+            'cards_added_to_collection': False,
             'most_expensive_card': {
                 'id': most_expensive_card['id'] if most_expensive_card else None,
                 'name': most_expensive_card.get('card_name', '') if most_expensive_card else None,
                 'point_worth': most_expensive_card.get('point_worth', 0) if most_expensive_card else 0,
-                'highlighted': result.get('highlight_added', {}).get('success', False)
+                'highlighted': False
             } if most_expensive_card else None
         }
         
@@ -634,3 +852,289 @@ async def automated_simulate_draw(
     except Exception as e:
         logger.error(f"Error in automated simulate draw: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Automated simulation failed: {str(e)}")
+
+
+async def get_all_achievements(db_client: AsyncClient) -> List[Dict[str, Any]]:
+    """
+    Get all achievements from the achievements collection.
+    
+    Args:
+        db_client: Firestore client
+        
+    Returns:
+        List of achievement data
+    """
+    try:
+        achievements_ref = db_client.collection('achievements')
+        docs = await achievements_ref.get()
+        
+        achievements = []
+        for doc in docs:
+            data = doc.to_dict()
+            data['id'] = doc.id
+            achievements.append({
+                'id': data.get('id'),
+                'name': data.get('name', ''),
+                'description': data.get('description', ''),
+                'condition': data.get('condition', {}),
+                'reward': data.get('reward', []),
+                'rarity': data.get('rarity', 1),
+                'rank': data.get('rank', 0)
+            })
+        
+        logger.info(f"Retrieved {len(achievements)} achievements")
+        return achievements
+        
+    except Exception as e:
+        logger.error(f"Error getting achievements: {e}")
+        return []
+
+
+async def get_user_achievements(
+    user_id: str,
+    db_client: AsyncClient
+) -> List[Dict[str, Any]]:
+    """
+    Get all achievements for a user.
+    
+    Args:
+        user_id: The user's ID
+        db_client: Firestore client
+        
+    Returns:
+        List of user achievement data
+    """
+    try:
+        user_ref = db_client.collection('users').document(user_id)
+        achievements_ref = user_ref.collection('achievements')
+        docs = await achievements_ref.get()
+        
+        achievements = []
+        for doc in docs:
+            data = doc.to_dict()
+            # Get the achievement ID from the document data or use doc.id
+            achievement_id = data.get('achievement_id', doc.id)
+            achievements.append({
+                'achievement_id': achievement_id,
+                'acquired': data.get('acquired', False),
+                'awardedAt': data.get('awardedAt'),
+                'progress': data.get('progress')
+            })
+        
+        logger.info(f"Retrieved {len(achievements)} achievements for user {user_id}")
+        return achievements
+        
+    except Exception as e:
+        logger.error(f"Error getting user achievements for {user_id}: {e}")
+        return []
+
+
+async def grant_achievement_to_user(
+    user_id: str,
+    achievement_id: str,
+    db_client: AsyncClient
+) -> Dict[str, Any]:
+    """
+    Grant an achievement to a user.
+    
+    Args:
+        user_id: The user's ID
+        achievement_id: The achievement ID to grant
+        db_client: Firestore client
+        
+    Returns:
+        Dict with operation status
+    """
+    try:
+        # Verify the achievement exists
+        achievement_ref = db_client.collection('achievements').document(achievement_id)
+        achievement_doc = await achievement_ref.get()
+        
+        if not achievement_doc.exists:
+            return {
+                'success': False,
+                'error': f"Achievement '{achievement_id}' not found"
+            }
+        
+        achievement_data = achievement_doc.to_dict()
+        
+        # Verify the user exists
+        user_ref = db_client.collection('users').document(user_id)
+        user_doc = await user_ref.get()
+        
+        if not user_doc.exists:
+            return {
+                'success': False,
+                'error': f"User '{user_id}' not found"
+            }
+        
+        # Check if user already has this achievement
+        user_achievement_ref = user_ref.collection('achievements').document(achievement_id)
+        user_achievement_doc = await user_achievement_ref.get()
+        
+        if user_achievement_doc.exists:
+            return {
+                'success': True,
+                'action': 'already_exists',
+                'achievement_id': achievement_id,
+                'achievement_name': achievement_data.get('name', '')
+            }
+        
+        # Grant the achievement
+        condition = achievement_data.get('condition', {})
+        target = condition.get('target', 0) if isinstance(condition, dict) else 0
+        
+        await user_achievement_ref.set({
+            'achievement_id': achievement_id,
+            'acquired': True,
+            'awardedAt': SERVER_TIMESTAMP,
+            'progress': target  # Set progress to target value (completed)
+        })
+        
+        logger.info(f"Granted achievement '{achievement_id}' to user {user_id}")
+        
+        return {
+            'success': True,
+            'action': 'granted',
+            'achievement_id': achievement_id,
+            'achievement_name': achievement_data.get('name', '')
+        }
+        
+    except Exception as e:
+        logger.error(f"Error granting achievement {achievement_id} to user {user_id}: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+async def revoke_achievement_from_user(
+    user_id: str,
+    achievement_id: str,
+    db_client: AsyncClient
+) -> Dict[str, Any]:
+    """
+    Revoke an achievement from a user.
+    
+    Args:
+        user_id: The user's ID
+        achievement_id: The achievement ID to revoke
+        db_client: Firestore client
+        
+    Returns:
+        Dict with operation status
+    """
+    try:
+        user_ref = db_client.collection('users').document(user_id)
+        user_achievement_ref = user_ref.collection('achievements').document(achievement_id)
+        
+        user_achievement_doc = await user_achievement_ref.get()
+        
+        if not user_achievement_doc.exists:
+            return {
+                'success': True,
+                'action': 'not_found',
+                'achievement_id': achievement_id
+            }
+        
+        # Also remove from achievement_highlights if present
+        achievement_highlight_ref = user_ref.collection('achievement_highlights').document(achievement_id)
+        achievement_highlight_doc = await achievement_highlight_ref.get()
+        if achievement_highlight_doc.exists:
+            await achievement_highlight_ref.delete()
+            logger.info(f"Removed achievement {achievement_id} from highlights for user {user_id}")
+        
+        await user_achievement_ref.delete()
+        
+        logger.info(f"Revoked achievement '{achievement_id}' from user {user_id}")
+        
+        return {
+            'success': True,
+            'action': 'revoked',
+            'achievement_id': achievement_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Error revoking achievement {achievement_id} from user {user_id}: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+async def update_admin_user(
+    user_id: str,
+    db_client: AsyncClient,
+    display_name: Optional[str] = None,
+    avatar: Optional[str] = None,
+    points_balance: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Update an admin-created user's profile.
+    
+    Args:
+        user_id: The user's ID
+        db_client: Firestore client
+        display_name: New display name (optional)
+        avatar: New avatar URL (optional)
+        points_balance: New points balance (optional)
+        
+    Returns:
+        Dict with operation status and updated user data
+    """
+    try:
+        user_ref = db_client.collection('users').document(user_id)
+        user_doc = await user_ref.get()
+        
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
+        
+        user_data = user_doc.to_dict()
+        
+        # Only allow updating admin-created users
+        if not user_data.get('admin_created', False):
+            raise HTTPException(status_code=403, detail="Cannot update non-admin-created users")
+        
+        # Build update dict
+        update_data = {}
+        if display_name is not None:
+            update_data['displayName'] = display_name
+        if avatar is not None:
+            update_data['avatar'] = avatar
+        if points_balance is not None:
+            update_data['pointsBalance'] = points_balance
+        
+        if not update_data:
+            return {
+                'success': True,
+                'action': 'no_changes',
+                'user_id': user_id
+            }
+        
+        await user_ref.update(update_data)
+        
+        # Fetch updated user
+        updated_doc = await user_ref.get()
+        updated_data = updated_doc.to_dict()
+        
+        logger.info(f"Updated admin user {user_id}: {update_data}")
+        
+        return {
+            'success': True,
+            'action': 'updated',
+            'user_id': user_id,
+            'user': {
+                'id': user_id,
+                'email': updated_data.get('email'),
+                'display_name': updated_data.get('displayName'),
+                'avatar': updated_data.get('avatar'),
+                'points_balance': updated_data.get('pointsBalance', 0),
+                'level': updated_data.get('level', 1)
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating admin user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update user: {str(e)}")

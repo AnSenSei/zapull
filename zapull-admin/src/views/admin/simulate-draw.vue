@@ -11,15 +11,23 @@
       <!-- 模拟抽卡表单 -->
       <el-form :model="form" :rules="rules" ref="formRef" label-width="120px" style="max-width: 600px;">
         <el-form-item label="用户邮箱" prop="email">
-          <el-input 
-            v-model="form.email" 
-            placeholder="输入用户邮箱"
-            @blur="handleEmailBlur"
+          <el-select
+            v-model="form.email"
+            placeholder="搜索或选择用户邮箱"
+            filterable
+            remote
+            :remote-method="searchUsers"
+            :loading="usersLoading"
+            style="width: 100%"
+            @change="handleEmailChange"
           >
-            <template #append>
-              <el-button @click="lookupUser" :loading="lookupLoading">查找用户</el-button>
-            </template>
-          </el-input>
+            <el-option
+              v-for="user in userOptions"
+              :key="user.id"
+              :label="`${user.email} (${user.displayName})`"
+              :value="user.email"
+            />
+          </el-select>
         </el-form-item>
 
         <!-- 用户信息显示 -->
@@ -231,12 +239,14 @@ import {
   type BatchSimulateDrawResponse
 } from '@/api/admin'
 import { getPackCollections, getPackList, type PackCollection, type PackDetail } from '@/api/packs'
+import { getUserList, type User } from '@/api/users'
 
 // Form ref
 const formRef = ref<FormInstance>()
 
 // Loading states
 const lookupLoading = ref(false)
+const usersLoading = ref(false)
 const collectionsLoading = ref(false)
 const packsLoading = ref(false)
 const simulateLoading = ref(false)
@@ -244,6 +254,7 @@ const batchLoading = ref(false)
 
 // Data
 const userInfo = ref<UserLookupResponse | null>(null)
+const userOptions = ref<User[]>([])
 const collections = ref<PackCollection[]>([])
 const packs = ref<PackDetail[]>([])
 const drawResult = ref<SimulateDrawResponse | null>(null)
@@ -305,9 +316,47 @@ const lookupUser = async () => {
   }
 }
 
-const handleEmailBlur = () => {
-  if (form.email && !userInfo.value) {
+// Handle email selection change
+const handleEmailChange = (email: string) => {
+  if (email) {
     lookupUser()
+  }
+}
+
+// Search users for dropdown
+const searchUsers = async (query: string) => {
+  if (!query && userOptions.value.length > 0) {
+    return
+  }
+  
+  usersLoading.value = true
+  try {
+    const response = await getUserList({
+      page: 1,
+      per_page: 50,
+      search_query: query || undefined
+    })
+    userOptions.value = response.users
+  } catch (error: any) {
+    console.error('搜索用户失败:', error)
+  } finally {
+    usersLoading.value = false
+  }
+}
+
+// Fetch initial users
+const fetchInitialUsers = async () => {
+  usersLoading.value = true
+  try {
+    const response = await getUserList({
+      page: 1,
+      per_page: 50
+    })
+    userOptions.value = response.users
+  } catch (error: any) {
+    console.error('获取用户列表失败:', error)
+  } finally {
+    usersLoading.value = false
   }
 }
 
@@ -490,6 +539,7 @@ const getColorTagType = (color: string) => {
 // Initialize
 onMounted(() => {
   fetchCollections()
+  fetchInitialUsers()
 })
 </script>
 

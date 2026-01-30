@@ -146,29 +146,21 @@ const menus = [
       }
     ]
   },
-  // 抽卡模拟器
+  // 虚拟用户管理
   {
-    path: '/simulate-draw',
-    meta: { title: '抽卡模拟器' },
-    icon: 'MagicStick',
+    path: '/virtual-user',
+    meta: { title: '虚拟用户管理' },
+    icon: 'UserFilled',
     children: [
       {
-        path: '/simulate-draw',
+        path: '/virtual-user/draw',
         meta: { title: '模拟抽卡' },
         icon: 'MagicStick'
-      }
-    ]
-  }
-]
-  {
-    path: '/admin',
-    meta: { title: '管理员工具' },
-    icon: 'Tools',
-    children: [
+      },
       {
-        path: '/admin/simulate-draw',
-        meta: { title: '模拟抽卡' },
-        icon: 'Refresh'
+        path: '/virtual-user/manage',
+        meta: { title: '用户管理' },
+        icon: 'User'
       }
     ]
   }

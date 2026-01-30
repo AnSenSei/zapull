@@ -9,7 +9,22 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 
 from config import get_logger, get_firestore_client
-from service.admin_service import simulate_draw_for_user, get_user_by_email, automated_simulate_draw, add_points_to_user
+from service.admin_service import (
+    simulate_draw_for_user,
+    get_user_by_email,
+    automated_simulate_draw,
+    add_points_to_user,
+    add_card_to_user_highlights,
+    get_user_highlights,
+    remove_card_from_user_highlights,
+    create_admin_user,
+    get_admin_created_users,
+    get_all_achievements,
+    get_user_achievements,
+    grant_achievement_to_user,
+    revoke_achievement_from_user,
+    update_admin_user,
+)
 
 logger = get_logger(__name__)
 
@@ -336,6 +351,336 @@ async def add_points_endpoint(
         raise
     except Exception as e:
         logger.error(f"Unexpected error adding points: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+class HighlightCardRequest(BaseModel):
+    """Request model for manually highlighting a card for a user"""
+    email: str = Field(..., description="Email of the user")
+    card_collection_id: str = Field(..., description="Collection ID of the card (e.g. 'pokemon')")
+    card_id: str = Field(..., description="ID of the card to highlight")
+    card_data: Dict[str, Any] = Field(..., description="Card data from the draw result")
+
+
+@router.post("/highlight-card")
+async def highlight_card_endpoint(
+    request: HighlightCardRequest = Body(..., description="Highlight card request"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> Dict[str, Any]:
+    """
+    Add a specific card to a user's highlights after a simulated draw.
+
+    This allows admins to choose exactly which drawn card should be highlighted
+    on the user's profile, without requiring the card to exist in inventory.
+    """
+    try:
+        user_data = await get_user_by_email(request.email, db)
+        if not user_data:
+            raise HTTPException(status_code=404, detail=f"User with email '{request.email}' not found")
+
+        result = await add_card_to_user_highlights(
+            user_id=user_data['id'],
+            card_collection_id=request.card_collection_id,
+            card_id=request.card_id,
+            card_data=request.card_data,
+            db_client=db
+        )
+        result['email'] = request.email
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error highlighting card: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+@router.get("/user-highlights")
+async def get_user_highlights_endpoint(
+    email: str = Query(..., description="Email of the user"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> Dict[str, Any]:
+    """
+    Get all highlights for a user by email.
+    """
+    try:
+        user_data = await get_user_by_email(email, db)
+        if not user_data:
+            raise HTTPException(status_code=404, detail=f"User with email '{email}' not found")
+
+        highlights = await get_user_highlights(
+            user_id=user_data['id'],
+            db_client=db
+        )
+        return {
+            'success': True,
+            'email': email,
+            'user_id': user_data['id'],
+            'highlights': highlights
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error getting highlights: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+@router.delete("/highlight-card")
+async def remove_highlight_card_endpoint(
+    email: str = Query(..., description="Email of the user"),
+    card_id: str = Query(..., description="ID of the card to remove"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> Dict[str, Any]:
+    """
+    Remove a card from user's highlights.
+    """
+    try:
+        user_data = await get_user_by_email(email, db)
+        if not user_data:
+            raise HTTPException(status_code=404, detail=f"User with email '{email}' not found")
+
+        result = await remove_card_from_user_highlights(
+            user_id=user_data['id'],
+            card_id=card_id,
+            db_client=db
+        )
+        result['email'] = email
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error removing highlight: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+class CreateAdminUserRequest(BaseModel):
+    """Request model for creating an admin user"""
+    email: str = Field(..., description="Email address for the new user")
+    display_name: str = Field(..., description="Display name for the new user")
+    initial_points: int = Field(10000, description="Initial points balance")
+    avatar: Optional[str] = Field(None, description="Avatar URL or base64 data")
+
+
+@router.post("/create-user")
+async def create_admin_user_endpoint(
+    request: CreateAdminUserRequest = Body(..., description="Create user request"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> Dict[str, Any]:
+    """
+    Create a new user via admin panel.
+    """
+    try:
+        result = await create_admin_user(
+            email=request.email,
+            display_name=request.display_name,
+            db_client=db,
+            initial_points=request.initial_points,
+            avatar=request.avatar
+        )
+        return {
+            'success': True,
+            'user': result
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error creating admin user: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+@router.get("/admin-users")
+async def get_admin_users_endpoint(
+    db: AsyncClient = Depends(get_firestore_client)
+) -> Dict[str, Any]:
+    """
+    Get all users created via admin panel.
+    """
+    try:
+        users = await get_admin_created_users(db)
+        return {
+            'success': True,
+            'users': users
+        }
+
+    except Exception as e:
+        logger.error(f"Unexpected error getting admin users: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+@router.get("/achievements")
+async def get_all_achievements_endpoint(
+    db: AsyncClient = Depends(get_firestore_client)
+) -> Dict[str, Any]:
+    """
+    Get all achievements available in the system.
+    """
+    try:
+        achievements = await get_all_achievements(db)
+        return {
+            'success': True,
+            'achievements': achievements
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error getting achievements: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+@router.get("/user-achievements")
+async def get_user_achievements_endpoint(
+    email: str = Query(..., description="Email of the user"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> Dict[str, Any]:
+    """
+    Get all achievements for a user by email.
+    """
+    try:
+        user_data = await get_user_by_email(email, db)
+        if not user_data:
+            raise HTTPException(status_code=404, detail=f"User with email '{email}' not found")
+
+        achievements = await get_user_achievements(
+            user_id=user_data['id'],
+            db_client=db
+        )
+        return {
+            'success': True,
+            'email': email,
+            'user_id': user_data['id'],
+            'achievements': achievements
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error getting user achievements: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+class GrantAchievementRequest(BaseModel):
+    """Request model for granting an achievement"""
+    email: str = Field(..., description="Email of the user")
+    achievement_id: str = Field(..., description="ID of the achievement to grant")
+
+
+@router.post("/grant-achievement")
+async def grant_achievement_endpoint(
+    request: GrantAchievementRequest = Body(..., description="Grant achievement request"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> Dict[str, Any]:
+    """
+    Grant an achievement to a user.
+    """
+    try:
+        user_data = await get_user_by_email(request.email, db)
+        if not user_data:
+            raise HTTPException(status_code=404, detail=f"User with email '{request.email}' not found")
+
+        result = await grant_achievement_to_user(
+            user_id=user_data['id'],
+            achievement_id=request.achievement_id,
+            db_client=db
+        )
+        result['email'] = request.email
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error granting achievement: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+@router.delete("/revoke-achievement")
+async def revoke_achievement_endpoint(
+    email: str = Query(..., description="Email of the user"),
+    achievement_id: str = Query(..., description="ID of the achievement to revoke"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> Dict[str, Any]:
+    """
+    Revoke an achievement from a user.
+    """
+    try:
+        user_data = await get_user_by_email(email, db)
+        if not user_data:
+            raise HTTPException(status_code=404, detail=f"User with email '{email}' not found")
+
+        result = await revoke_achievement_from_user(
+            user_id=user_data['id'],
+            achievement_id=achievement_id,
+            db_client=db
+        )
+        result['email'] = email
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error revoking achievement: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        )
+
+
+class UpdateAdminUserRequest(BaseModel):
+    """Request model for updating an admin user"""
+    user_id: str = Field(..., description="ID of the user to update")
+    display_name: Optional[str] = Field(None, description="New display name")
+    avatar: Optional[str] = Field(None, description="New avatar URL")
+    points_balance: Optional[int] = Field(None, description="New points balance")
+
+
+@router.put("/admin-user")
+async def update_admin_user_endpoint(
+    request: UpdateAdminUserRequest = Body(..., description="Update user request"),
+    db: AsyncClient = Depends(get_firestore_client)
+) -> Dict[str, Any]:
+    """
+    Update an admin-created user's profile.
+    """
+    try:
+        result = await update_admin_user(
+            user_id=request.user_id,
+            db_client=db,
+            display_name=request.display_name,
+            avatar=request.avatar,
+            points_balance=request.points_balance
+        )
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error updating admin user: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"An unexpected error occurred: {str(e)}"
