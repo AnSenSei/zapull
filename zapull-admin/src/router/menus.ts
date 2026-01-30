@@ -145,6 +145,24 @@ const menus = [
         icon: 'Van'
       }
     ]
+  },
+  // 虚拟用户管理
+  {
+    path: '/virtual-user',
+    meta: { title: '虚拟用户管理' },
+    icon: 'UserFilled',
+    children: [
+      {
+        path: '/virtual-user/draw',
+        meta: { title: '模拟抽卡' },
+        icon: 'MagicStick'
+      },
+      {
+        path: '/virtual-user/manage',
+        meta: { title: '用户管理' },
+        icon: 'User'
+      }
+    ]
   }
 ]
 

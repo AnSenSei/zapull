@@ -226,6 +226,27 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: '物流信息' }
       }
     ]
+  },
+  // 虚拟用户管理路由
+  {
+    path: '/virtual-user',
+    component: Layout,
+    redirect: '/virtual-user/draw',
+    meta: { title: '虚拟用户管理', icon: 'UserFilled' },
+    children: [
+      {
+        path: 'draw',
+        name: 'SimulateDraw',
+        component: () => import('@/views/simulate-draw/index.vue'),
+        meta: { title: '模拟抽卡' }
+      },
+      {
+        path: 'manage',
+        name: 'VirtualUserManage',
+        component: () => import('@/views/virtual-user/manage.vue'),
+        meta: { title: '用户管理' }
+      }
+    ]
   }
 ]
 

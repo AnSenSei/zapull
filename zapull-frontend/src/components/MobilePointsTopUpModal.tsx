@@ -7,7 +7,7 @@ import { processRechargePayment, getUserRechargeHistory, formatAmount, getUserPa
 import { getCurrentUserId } from '@/lib/authUtils'
 import { PaymentMethod } from '@/lib/paymentApi'
 import CreditCardModal from './CreditCardModal'
-import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import { Elements, PaymentElement, ExpressCheckoutElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import { paymentApi } from '@/lib/paymentApi'
 import { getStripe } from '@/lib/stripeIntegration'
 import toast from 'react-hot-toast'
@@ -27,48 +27,6 @@ interface PackageOption {
   bonus?: number;
 }
 
-function WalletConfirmButton({ onError, onSuccess, price }: { onError: (msg: string) => void; onSuccess: (paymentIntentId?: string) => void; price?: number }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async () => {
-    if (!stripe || !elements) return;
-    setSubmitting(true);
-    try {
-      const result = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: typeof window !== 'undefined' ? window.location.origin + '/payment-success' : undefined,
-        },
-        redirect: 'if_required'
-      });
-      if (result.error) {
-        onError(result.error.message || 'Payment failed');
-      } else if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
-        if (onSuccess) onSuccess(result.paymentIntent.id);
-      }
-    } catch (e: any) {
-      onError(e.message || 'Payment failed');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <button 
-      className="w-full px-4 py-3 rounded-lg text-white font-medium text-sm disabled:bg-gray-600" 
-      style={{
-        background: !submitting && stripe && elements ? '#8868FF' : '#666',
-        borderRadius: '8px'
-      }}
-      disabled={!stripe || !elements || submitting} 
-      onClick={submit}
-    >
-      {submitting ? 'Processing...' : price ? `Buy for $${price.toFixed(2)}` : 'Pay with Wallet'}
-    </button>
-  );
-}
 
 export default function MobilePointsTopUpModal({ isOpen, onClose, onSuccess }: MobilePointsTopUpModalProps) {
   // Get current user ID from auth state
@@ -186,11 +144,12 @@ export default function MobilePointsTopUpModal({ isOpen, onClose, onSuccess }: M
     }
   };
 
-  // Create a PaymentIntent for wallets when package changes
+  // Create a PaymentIntent for wallets only when user reaches payment step
   useEffect(() => {
     const createWalletPI = async () => {
       try {
-        if (!isOpen || !userId || selectedPackage === null) return;
+        // Only create payment intent when user is on the payment step
+        if (!isOpen || !userId || selectedPackage === null || currentStep !== 'payment') return;
         const pkg = packages.find(p => p.id === selectedPackage);
         if (!pkg) return;
         const pi = await paymentApi.createPaymentIntent({
@@ -221,7 +180,7 @@ export default function MobilePointsTopUpModal({ isOpen, onClose, onSuccess }: M
     };
     createWalletPI();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, userId, selectedPackage, affiliateCode]);
+  }, [isOpen, userId, selectedPackage, affiliateCode, currentStep]);
 
   // Handle buy button click
   const handleBuy = async () => {
@@ -762,37 +721,34 @@ export default function MobilePointsTopUpModal({ isOpen, onClose, onSuccess }: M
                         theme: 'night'
                       }
                     }}>
-                      <div className="relative" style={{ minHeight: '100px', touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
-                        <PaymentElement 
+                      <div className="relative" style={{ minHeight: '60px', touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}>
+                        <ExpressCheckoutElement 
+                          onConfirm={async (event) => {
+                            // Payment confirmed via Express Checkout
+                            try {
+                              // The payment is already confirmed by Stripe
+                              // We just need to handle the success
+                              const { paymentIntent } = event;
+                              if (paymentIntent && paymentIntent.id) {
+                                await handlePaymentSuccess(paymentIntent.id);
+                              }
+                            } catch (e: any) {
+                              setError(e.message || 'Payment failed');
+                            }
+                          }}
                           options={{
-                            layout: {
-                              type: 'accordion',
-                              defaultCollapsed: false,
-                              radios: false,
-                              spacedAccordionItems: false
-                            },
                             wallets: {
-                              applePay: walletLabel === 'Apple Pay' ? 'auto' : 'never',
-                              googlePay: walletLabel === 'Google Pay' ? 'auto' : 'never'
+                              applePay: walletLabel === 'Apple Pay' ? 'always' : 'never',
+                              googlePay: walletLabel === 'Google Pay' ? 'always' : 'never'
                             },
-                            // Only render the selected wallet in the element
-                            paymentMethodOrder: walletLabel === 'Apple Pay' ? ['apple_pay'] : ['google_pay']
+                            buttonHeight: 48,
+                            buttonType: {
+                              applePay: 'buy',
+                              googlePay: 'buy'
+                            }
                           }}
                         />
                       </div>
-                      <WalletConfirmButton 
-                        onError={(msg) => setError(msg)} 
-                        onSuccess={(piId) => {
-                          if (piId) {
-                            handlePaymentSuccess(piId);
-                          } else {
-                            // Fallback: close and notify parent if no id (shouldn't happen on success)
-                            onClose();
-                            if (onSuccess) onSuccess();
-                          }
-                        }}
-                        price={selectedPackageDetails ? selectedPackageDetails.price : 25}
-                      />
                       <button 
                         className="w-full px-4 py-2 rounded-lg text-white font-medium text-sm"
                         style={{
