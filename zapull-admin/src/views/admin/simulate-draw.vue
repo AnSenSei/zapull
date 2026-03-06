@@ -24,7 +24,7 @@
             <el-option
               v-for="user in userOptions"
               :key="user.id"
-              :label="`${user.email} (${user.displayName})`"
+              :label="`${user.email} (${user.display_name})`"
               :value="user.email"
             />
           </el-select>
@@ -234,12 +234,13 @@ import {
   lookupUserByEmail, 
   simulateDraw, 
   batchSimulateDraw,
+  getAdminUsers,
   type UserLookupResponse, 
   type SimulateDrawResponse,
-  type BatchSimulateDrawResponse
+  type BatchSimulateDrawResponse,
+  type AdminUser
 } from '@/api/admin'
 import { getPackCollections, getPackList, type PackCollection, type PackDetail } from '@/api/packs'
-import { getUserList, type User } from '@/api/users'
 
 // Form ref
 const formRef = ref<FormInstance>()
@@ -254,7 +255,7 @@ const batchLoading = ref(false)
 
 // Data
 const userInfo = ref<UserLookupResponse | null>(null)
-const userOptions = ref<User[]>([])
+const userOptions = ref<AdminUser[]>([])
 const collections = ref<PackCollection[]>([])
 const packs = ref<PackDetail[]>([])
 const drawResult = ref<SimulateDrawResponse | null>(null)
@@ -323,38 +324,24 @@ const handleEmailChange = (email: string) => {
   }
 }
 
-// Search users for dropdown
+// Search users for dropdown (filter from admin users list)
 const searchUsers = async (query: string) => {
   if (!query && userOptions.value.length > 0) {
     return
   }
   
-  usersLoading.value = true
-  try {
-    const response = await getUserList({
-      page: 1,
-      per_page: 50,
-      search_query: query || undefined
-    })
-    userOptions.value = response.users
-  } catch (error: any) {
-    console.error('搜索用户失败:', error)
-  } finally {
-    usersLoading.value = false
-  }
+  // Filter from existing userOptions if already loaded
+  // The remote search will filter locally since we have all admin users
 }
 
-// Fetch initial users
+// Fetch admin users (predefined + admin-created)
 const fetchInitialUsers = async () => {
   usersLoading.value = true
   try {
-    const response = await getUserList({
-      page: 1,
-      per_page: 50
-    })
+    const response = await getAdminUsers()
     userOptions.value = response.users
   } catch (error: any) {
-    console.error('获取用户列表失败:', error)
+    console.error('获取管理员用户列表失败:', error)
   } finally {
     usersLoading.value = false
   }

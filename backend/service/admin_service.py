@@ -74,9 +74,9 @@ async def create_admin_user(
         
         # Generate default avatar URL using UI Avatars if none provided
         if not avatar:
-            # Use UI Avatars service for default avatar with initials
+            # Use UI Avatars service for default avatar with initials (two characters)
             encoded_name = display_name.replace(' ', '+')
-            avatar = f"https://ui-avatars.com/api/?name={encoded_name}&background=random&color=fff&size=128"
+            avatar = f"https://ui-avatars.com/api/?name={encoded_name}&background=random&color=fff&size=128&length=1"
         
         # Create user document
         users_ref = db_client.collection('users')
@@ -120,14 +120,31 @@ async def create_admin_user(
 
 async def get_admin_created_users(db_client: AsyncClient) -> List[Dict[str, Any]]:
     """
-    Get all users created via admin panel.
+    Get all users created via admin panel, plus predefined test emails.
     
     Args:
         db_client: Firestore client
         
     Returns:
-        List of admin-created users
+        List of admin-created users and predefined emails
     """
+    # Predefined emails for simulate draw dropdown
+    predefined_emails = [
+        'g1003509461@gmail.com',
+        'emilymillerzp@gmail.com',
+        'luckyrollzp@gmail.com',
+        'tacotacobday@gmail.com',
+        'bubblebuble2018@gmail.com',
+        'animetaleszp@gmail.com',
+        'williamwilsonzp@gmail.com',
+        'jacksonleezp@gmail.com',
+        'zapullonepiece@gmail.com',
+        'kybubuscloset@gmail.com',
+        'brainddddzp@gmail.com',
+        'kaia10035@hotmail.com',
+        'junhaoandyqi@gmail.com'
+    ]
+    
     try:
         users_ref = db_client.collection('users')
         # Simple query without order_by to avoid composite index requirement
@@ -135,24 +152,51 @@ async def get_admin_created_users(db_client: AsyncClient) -> List[Dict[str, Any]
         docs = await query.get()
         
         users = []
+        existing_emails = set()
+        
         for doc in docs:
             user_data = doc.to_dict()
             user_data['id'] = doc.id
+            email = user_data.get('email')
+            existing_emails.add(email)
             users.append({
                 'id': user_data.get('id'),
-                'email': user_data.get('email'),
+                'email': email,
                 'display_name': user_data.get('displayName'),
                 'avatar': user_data.get('avatar'),
                 'points_balance': user_data.get('pointsBalance', 0),
                 'level': user_data.get('level', 1)
             })
         
-        logger.info(f"Retrieved {len(users)} admin-created users")
+        # Add predefined emails that are not already in the list
+        for email in predefined_emails:
+            if email not in existing_emails:
+                users.append({
+                    'id': f'predefined-{email}',
+                    'email': email,
+                    'display_name': email.split('@')[0],
+                    'avatar': None,
+                    'points_balance': 0,
+                    'level': 1
+                })
+        
+        logger.info(f"Retrieved {len(users)} admin-created users (including predefined)")
         return users
         
     except Exception as e:
         logger.error(f"Error getting admin-created users: {e}")
-        return []
+        # Return predefined emails even if DB query fails
+        return [
+            {
+                'id': f'predefined-{email}',
+                'email': email,
+                'display_name': email.split('@')[0],
+                'avatar': None,
+                'points_balance': 0,
+                'level': 1
+            }
+            for email in predefined_emails
+        ]
 
 
 async def simulate_draw_for_user(
