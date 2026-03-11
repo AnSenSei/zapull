@@ -13,7 +13,6 @@ interface EventBannerProps {
 export default function EventBanner({ isMobile }: EventBannerProps) {
   const router = useRouter()
   const { openRegisterModal } = useAuthStore()
-  const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false)
   
   // Use actual files under public/event
   // Updated: Add shop.webp as first event (position 1) and move existing events to positions 2, 3, 4

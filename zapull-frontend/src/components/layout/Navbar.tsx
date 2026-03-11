@@ -8,7 +8,7 @@ import { isAuthenticated, getCurrentUserId } from '@/lib/authUtils'
 import { userApi } from '@/lib/userApi'
 import { packsApi, CollectionMetadata } from '@/lib/packsApi'
 import { paymentApi } from '@/lib/paymentApi'
-import PointsTopUpModal from '../PointsTopUpModal'
+
 import toast from 'react-hot-toast'
 import { trackFusionNavigation } from '@/lib/analytics'
 import { getImageProps } from '@/lib/image-loader'
@@ -99,7 +99,7 @@ const Navbar = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState("/header/collection-1.webp")
-  const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false)
+
   const [isRefreshing, setIsRefreshing] = useState(false)
   const navRef = useRef<HTMLDivElement | null>(null)
   const { openLoginModal, openRegisterModal, userInfo, setUserInfo, authInitialized } = useAuthStore()
@@ -372,11 +372,6 @@ const Navbar = () => {
 
   return (
     <>
-      <PointsTopUpModal 
-        isOpen={isTopUpModalOpen} 
-        onClose={() => setIsTopUpModalOpen(false)}
-        onSuccess={handleRefreshPoints}
-      />
 <nav ref={navRef} className="bg-[#2A2B3D] py-2 border-b border-gray-700 fixed top-0 left-0 right-0 z-[60] md:sticky md:top-0 md:z-50">
         <div className="w-full px-0">
           {/* Centered desktop logo (show only on very large screens 1920px+ to avoid overlap with nav) */}
@@ -579,11 +574,9 @@ const Navbar = () => {
               <div className="hidden md:flex items-center space-x-4">
                 {/* Balance display and refresh button */}
                 <div className="flex items-center space-x-2">
-                  {/* Balance display - Click to open top-up modal */}
+                  {/* Balance display */}
                   <div 
-                    className="flex items-center text-yellow-400 bg-[#1E1F2E] px-3 py-1 rounded-full cursor-pointer hover:bg-[#2A2B3D] transition-colors"
-                    onClick={() => setIsTopUpModalOpen(true)}
-                    title="Click to top up"
+                    className="flex items-center text-yellow-400 bg-[#1E1F2E] px-3 py-1 rounded-full"
                   >
                     <Image src="/marketplace/coin.png" alt="Points" width={16} height={16} className="mr-1" />
                     <span>{userInfo?.pointsBalance || 0.00}</span>
@@ -740,9 +733,7 @@ const Navbar = () => {
               {/* Points display for mobile - shown when logged in */}
               {authInitialized && isLoggedIn && (
                 <div 
-                  className="flex items-center text-yellow-400 bg-[#1E1F2E] px-2 py-1 rounded-full cursor-pointer hover:bg-[#2A2B3D] transition-colors text-sm"
-                  onClick={() => setIsTopUpModalOpen(true)}
-                  title="Click to top up"
+                  className="flex items-center text-yellow-400 bg-[#1E1F2E] px-2 py-1 rounded-full text-sm"
                 >
                   <Image src="/marketplace/coin.png" alt="Points" width={12} height={12} className="mr-1" />
                   <span className="font-medium">{userInfo?.pointsBalance || 0.00}</span>
@@ -880,9 +871,7 @@ const Navbar = () => {
                           <div className="text-white font-semibold">{userInfo?.displayName || 'User'}</div>
                           <div className="text-yellow-400 text-sm flex items-center">
                             <div 
-                              className="cursor-pointer hover:text-yellow-300 transition-colors mr-2 flex items-center"
-                              onClick={() => setIsTopUpModalOpen(true)}
-                              title="Click to top up"
+                              className="mr-2 flex items-center"
                             >
                               <Image src="/marketplace/coin.png" alt="Points" width={16} height={16} className="mr-1" />
                               <span className="font-medium">{userInfo?.pointsBalance || 0.00}</span>

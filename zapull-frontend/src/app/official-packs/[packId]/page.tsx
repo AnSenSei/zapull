@@ -17,7 +17,7 @@ import toast from 'react-hot-toast'
 import { toastSuccess } from '@/lib/toast'
 import { lockBodyScroll, unlockBodyScroll, forceUnlockBodyScroll } from '@/lib/scrollLock'
 import PackGuideModal from '@/components/PackGuideModal'
-import PointsTopUpModal from '@/components/PointsTopUpModal'
+
 import { audioManager, SOUND_PATHS, initializeAudioManager } from '@/lib/audioManager'
 import { getDrawAnimationUrl, preloadDrawAnimation, isDrawAnimationCached } from '@/lib/videoCache'
 import { getAuthHeaders } from '@/lib/authUtils'
@@ -318,7 +318,7 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
   const [isAnimating, setIsAnimating] = useState(false)
   const [selectedCard, setSelectedCard] = useState<CardInfo | null>(null)
   const [showGuideModal, setShowGuideModal] = useState(false)
-  const [showTopUpModal, setShowTopUpModal] = useState(false)
+
   const [drawResults, setDrawResults] = useState<DrawResult | null>(null)
   const [showResults, setShowResults] = useState(false)
   const [showCardAnimation, setShowCardAnimation] = useState(false)
@@ -577,8 +577,8 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
     console.log('Checking points:', { userPoints: (user as any).points, totalCost })
     
     if ((user as any).points < totalCost) {
-      console.log('Not enough points, showing top-up modal')
-      setShowTopUpModal(true)
+      console.log('Not enough points')
+      toast.error('Insufficient points to draw cards.')
       return
     }
     
@@ -1858,12 +1858,7 @@ export default function OfficialPackDetailsPage({ params }: { params: Promise<{ 
         />
       )}
 
-      {/* Top-up Modal */}
-      {showTopUpModal && (
-        <PointsTopUpModal
-          onClose={() => setShowTopUpModal(false)}
-        />
-      )}
+
 
     </div>
   )

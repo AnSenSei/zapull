@@ -41,7 +41,7 @@ export default function OfficialPackDetailsPage({ params }: OfficialPackDetailsP
   const [animatingCardIndex, setAnimatingCardIndex] = useState(0)
   const [revealedCards, setRevealedCards] = useState<any[]>([])
   const [showLoginModal, setShowLoginModal] = useState(false)
-  const [showTopUpModal, setShowTopUpModal] = useState(false)
+
   const [selectedCards, setSelectedCards] = useState<Set<number>>(new Set())
   const [priceFilter, setPriceFilter] = useState({ min: 0, max: 10000 })
   const [showFilters, setShowFilters] = useState(false)
@@ -86,7 +86,7 @@ export default function OfficialPackDetailsPage({ params }: OfficialPackDetailsP
     }
 
     if (!user.points || user.points < (pack?.price || 0) * drawCount) {
-      setShowTopUpModal(true)
+      toast.error('Insufficient points to draw cards.')
       return
     }
 
@@ -607,34 +607,7 @@ export default function OfficialPackDetailsPage({ params }: OfficialPackDetailsP
         </div>
       )}
 
-      {/* Top Up Modal */}
-      {showTopUpModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-white mb-4">Insufficient Points</h2>
-            <p className="text-gray-400 mb-6">
-              You need {(pack?.price || 0) * drawCount} points but only have {user?.points || 0} points.
-            </p>
-            <div className="flex gap-4">
-              <button 
-                onClick={() => {
-                  setShowTopUpModal(false)
-                  // Navigate to top-up page or open top-up modal
-                }}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg"
-              >
-                Top Up
-              </button>
-              <button 
-                onClick={() => setShowTopUpModal(false)}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }

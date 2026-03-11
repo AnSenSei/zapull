@@ -12,7 +12,7 @@ import { getPackColorTheme } from '@/lib/packColorUtils';
 import PacksFilterPanel from '@/components/PacksFilterPanel'
 import { useAuthStore } from '@/store/authStore'
 import { isAuthenticated } from '@/lib/authUtils'
-import PointsTopUpModal from '@/components/PointsTopUpModal'
+
 import EventBanner from '@/components/home/EventBanner'
 
 // Simple helper to optimize images with Cloudflare Image Resizing
@@ -132,7 +132,7 @@ const initialFilters = useRef(getInitialFilters());
   // Use collection selection state provided by navbar
   const { selectedCollectionId, collections, loadingCollections } = useCollection()
   const { openRegisterModal } = useAuthStore()
-  const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false)
+
   
   // Packs list related state
   const [packs, setPacks] = useState<Pack[]>([])
@@ -577,16 +577,7 @@ const onPageShow = (e: PageTransitionEvent | any) => {
   
   return (
     <>
-      {/* Points Top Up Modal */}
-      <PointsTopUpModal 
-        isOpen={isTopUpModalOpen} 
-        onClose={() => setIsTopUpModalOpen(false)}
-        onSuccess={() => {
-          // Optionally refresh user data or show success message
-          setIsTopUpModalOpen(false);
-        }}
-      />
-      
+
       <div className="space-y-4 sm:space-y-6">
       
       {/* Event Banner */}

@@ -18,7 +18,7 @@ import toast from 'react-hot-toast'
 import { toastSuccess } from '@/lib/toast'
 import { lockBodyScroll, unlockBodyScroll, forceUnlockBodyScroll } from '@/lib/scrollLock'
 import PackGuideModal from '@/components/PackGuideModal'
-import PointsTopUpModal from '@/components/PointsTopUpModal'
+
 import { audioManager, SOUND_PATHS, initializeAudioManager } from '@/lib/audioManager'
 import { getDrawAnimationUrl, preloadDrawAnimation, isDrawAnimationCached } from '@/lib/videoCache'
 import { useCelebrationEffects, getCelebrationColorFromCardColor } from '@/lib/celebrationManager'
@@ -209,7 +209,7 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
   // 状态管理
   const [eventId, setEventId] = useState<string>('')
   const [eventConfig, setEventConfig] = useState<any>(null)
-  const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false)
+
   
   // 清理滚动锁
   useEffect(() => {
@@ -1523,11 +1523,7 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
         onClose={() => setShowGuide(false)}
       />
       
-      {/* Points Top-up Modal */}
-      <PointsTopUpModal
-        isOpen={isTopUpModalOpen}
-        onClose={() => setIsTopUpModalOpen(false)}
-      />
+
     </div>
   )
 }

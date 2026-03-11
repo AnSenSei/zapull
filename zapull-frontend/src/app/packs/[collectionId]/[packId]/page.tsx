@@ -18,7 +18,7 @@ import toast from 'react-hot-toast'
 import { toastSuccess } from '@/lib/toast'
 import { lockBodyScroll, unlockBodyScroll, forceUnlockBodyScroll } from '@/lib/scrollLock'
 import PackGuideModal from '@/components/PackGuideModal'
-import PointsTopUpModal from '@/components/PointsTopUpModal'
+
 import { audioManager, SOUND_PATHS, initializeAudioManager } from '@/lib/audioManager'
 import { getDrawAnimationUrl, preloadDrawAnimation, isDrawAnimationCached } from '@/lib/videoCache'
 
@@ -196,7 +196,7 @@ export default function PackDetailPage({ params }: PackDetailPageProps) {
   // 状态管理 - 确保所有hooks都在条件返回之前调用
   const [collectionId, setCollectionId] = useState<string>('')
   const [packId, setPackId] = useState<string>('')
-  const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false)
+
   
   // 确保页面可以滚动 - 清理任何残留的滚动锁
   useEffect(() => {
@@ -483,8 +483,7 @@ export default function PackDetailPage({ params }: PackDetailPageProps) {
     const userPoints = userInfo?.pointsBalance || 0;
     
     if (userPoints < requiredPoints) {
-      // Open top-up modal instead of showing error
-      setIsTopUpModalOpen(true);
+      toast.error(`Insufficient points. You have ${userPoints.toFixed(2)} points, but need ${requiredPoints.toFixed(2)} points.`);
       return;
     }
     
@@ -1687,11 +1686,7 @@ export default function PackDetailPage({ params }: PackDetailPageProps) {
         onClose={() => setShowGuide(false)}
       />
       
-      {/* Points Top-up Modal */}
-      <PointsTopUpModal
-        isOpen={isTopUpModalOpen}
-        onClose={() => setIsTopUpModalOpen(false)}
-      />
+
     </div>
   )
 }
